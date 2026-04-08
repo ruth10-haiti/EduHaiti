@@ -1,0 +1,111 @@
+.dashboardContainer {
+  display: flex;
+  min-height: 100vh;
+}
+
+.dashboardNav {
+  width: 280px;
+  background: #1e293b;
+  color: white;
+  padding: 1.5rem;
+}
+
+.navBrand {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.roleBadge {
+  background: #3b82f6;
+  padding: 0.2rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.navMenu {
+  list-style: none;
+}
+
+.navMenu li {
+  margin-bottom: 0.5rem;
+}
+
+.navMenu a,
+.navMenu button {
+  display: block;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  color: #cbd5e1;
+  transition: all 0.2s;
+  width: 100%;
+  text-align: left;
+}
+
+.navMenu a:hover,
+.navMenu button:hover {
+  background: #334155;
+  color: white;
+}
+
+.logoutBtn {
+  color: #f87171 !important;
+}
+
+.content {
+  flex: 1;
+  padding: 2rem;
+  background: #f8fafc;
+}
+
+.welcome h1 {
+  margin-bottom: 1rem;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  text-align: center;
+  font-weight: 500;
+  transition: transform 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.enfantsList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.enfantCard {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+}
+
+.btn {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background: #2563eb;
+  color: white;
+  border-radius: 6px;
+}
