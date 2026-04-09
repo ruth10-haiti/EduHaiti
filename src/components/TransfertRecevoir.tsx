@@ -5,7 +5,7 @@ const TransfertRecevoir: React.FC = () => {
   const [qrCode, setQrCode] = useState('');
 
   const handleScan = async () => {
-    const res = await api.get(`/transferts?code_qr=${qrCode}`);
+    await api.get(`/transferts?code_qr=${qrCode}`);
     // Traitement...
     alert('Transfert reçu');
   };
