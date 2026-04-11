@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Accueil from './pages/Accueil';
 import Connexion from './pages/Connexion';
 import Inscription from './pages/Inscription';
+import VerifierEmail from './pages/VerifierEmail';
 import AdminDashboard from './pages/Dashboard/AdminDashboard';
 import SecretariatDashboard from './pages/Dashboard/SecretariatDashboard';
 import BunexeDashboard from './pages/Dashboard/BunexeDashboard';
@@ -29,6 +30,7 @@ function App() {
           <Route path="/" element={<Accueil />} />
           <Route path="/connexion" element={<Connexion />} />
           <Route path="/inscription" element={<Inscription />} />
+          <Route path="/verifier-email/:token" element={<VerifierEmail />} />
           <Route path="/dashboard" element={<DashboardRedirect />} />
 
           <Route element={<ProtectedRoute roles={['admin']} />}>
