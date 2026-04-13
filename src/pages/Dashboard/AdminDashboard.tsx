@@ -6,6 +6,9 @@ import ListeEleves from '../../components/ListeEleves';
 import Examens from '../../components/Examens';
 import api from '../../services/api';
 import styles from '../styles/Dashboard.module.css';
+import AjouterEleve from '../../components/AjouterEleve'; 
+
+
 
 // ========== COMPOSANT CRÉER UN UTILISATEUR ==========
 const CreerUtilisateur: React.FC<{ onUserCreated: () => void }> = ({ onUserCreated }) => {
@@ -250,6 +253,9 @@ const AdminDashboard: React.FC = () => {
           <Route path="/ecoles" element={<AjouterEcole />} />
           <Route path="/eleves" element={<ListeEleves />} />
           <Route path="/examens" element={<Examens />} />
+          <Route path="/eleves/ajouter" element={<AjouterEleve />} />
+          <Route path="/eleves/:id/modifier" element={<AjouterEleve />} />
+
         </Routes>
       </div>
     </div>
