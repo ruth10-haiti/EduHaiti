@@ -8,6 +8,7 @@ interface User {
   email: string;
   role: 'admin' | 'secretariat' | 'bunexe' | 'parent';
   id_ecole?: number;
+  doit_changer_mdp?: boolean; // ← AJOUTÉ
 }
 
 interface AuthContextType {
@@ -42,7 +43,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(parsedUser);
         console.log('✅ Utilisateur chargé depuis localStorage:', parsedUser);
         
-        // Configurer le token dans axios
         api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
       } catch (error) {
         console.error('❌ Erreur parsing user:', error);
@@ -50,15 +50,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.removeItem('user');
       }
     } else if (storedToken) {
-      // Si seulement le token existe, récupérer l'utilisateur
       const fetchUser = async () => {
         try {
           console.log('📡 Récupération utilisateur depuis /api/auth/me');
           const res = await api.get('/auth/me');
-          setUser(res.data);
+          const userData = res.data;
+          setUser(userData);
           setToken(storedToken);
-          localStorage.setItem('user', JSON.stringify(res.data));
-          console.log('✅ Utilisateur récupéré:', res.data);
+          localStorage.setItem('user', JSON.stringify(userData));
+          console.log('✅ Utilisateur récupéré:', userData);
         } catch (err) {
           console.error('❌ Erreur récupération utilisateur:', err);
           localStorage.removeItem('token');
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       };
       fetchUser();
-      return; // Ne pas set isLoading(false) tout de suite
+      return;
     }
     
     setIsLoading(false);
@@ -82,24 +82,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const res = await api.post('/auth/connexion', { email, mot_de_passe: password });
       console.log('📥 Réponse login:', res.data);
       
-      const { token: newToken, user: userData } = res.data;
+      const { token: newToken, user: userData, doit_changer_mdp } = res.data;
       
       if (!newToken || !userData) {
         throw new Error('Token ou utilisateur manquant dans la réponse');
       }
       
-      // Stocker dans localStorage
-      localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(userData));
+      // Ajouter le flag doit_changer_mdp à l'utilisateur
+      const userWithFlag = { ...userData, doit_changer_mdp: doit_changer_mdp || false };
       
-      // Configurer le token dans axios
+      localStorage.setItem('token', newToken);
+      localStorage.setItem('user', JSON.stringify(userWithFlag));
+      
       api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
       
-      // Mettre à jour l'état
       setToken(newToken);
-      setUser(userData);
+      setUser(userWithFlag);
       
-      console.log('✅ Login réussi pour:', userData.email);
+      console.log('✅ Login réussi pour:', userData.email, 'doit_changer_mdp:', doit_changer_mdp);
     } catch (error: any) {
       console.error('❌ Erreur login:', error.response?.data || error.message);
       throw error;
@@ -109,14 +109,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = () => {
     console.log('🚪 Logout appelé');
     
-    // Supprimer du localStorage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     
-    // Supprimer le token d'axios
     delete api.defaults.headers.common['Authorization'];
     
-    // Mettre à jour l'état
     setToken(null);
     setUser(null);
   };

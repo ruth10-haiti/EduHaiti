@@ -5,6 +5,7 @@ import Accueil from './pages/Accueil';
 import Connexion from './pages/Connexion';
 import Inscription from './pages/Inscription';
 import VerifierEmail from './pages/VerifierEmail';
+import ChangerMotDePasse from './pages/ChangerMotDePasse'; // ← NOUVEAU
 import AdminDashboard from './pages/Dashboard/AdminDashboard';
 import SecretariatDashboard from './pages/Dashboard/SecretariatDashboard';
 import BunexeDashboard from './pages/Dashboard/BunexeDashboard';
@@ -54,6 +55,12 @@ const DashboardRedirect = () => {
     return <Navigate to="/connexion" replace />;
   }
   
+  // Vérifier si l'utilisateur doit changer son mot de passe
+  if (user.doit_changer_mdp) {
+    console.log('⚠️ Utilisateur doit changer son mot de passe');
+    return <Navigate to="/changer-mot-de-passe" replace />;
+  }
+  
   console.log('✅ Utilisateur trouvé, rôle:', user.role);
   
   switch (user.role) {
@@ -86,6 +93,7 @@ function App() {
           <Route path="/connexion" element={<Connexion />} />
           <Route path="/inscription" element={<Inscription />} />
           <Route path="/verifier-email/:token" element={<VerifierEmail />} />
+          <Route path="/changer-mot-de-passe" element={<ChangerMotDePasse />} /> {/* ← NOUVEAU */}
           
           {/* Route de test */}
           <Route path="/dashboard-test" element={<DashboardTest />} />

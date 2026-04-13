@@ -10,7 +10,7 @@ const Connexion: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [needVerification, setNeedVerification] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
-  const { login, user } = useAuth(); // ✅ Ajout de user pour suivre l'état
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -19,15 +19,21 @@ const Connexion: React.FC = () => {
     console.log('🔍 Vérification user dans Connexion:', user);
     
     if (user) {
-      console.log('✅ Utilisateur déjà connecté, redirection vers dashboard');
-      let redirectUrl = '/dashboard';
-      switch (user.role) {
-        case 'admin': redirectUrl = '/admin'; break;
-        case 'secretariat': redirectUrl = '/secretariat'; break;
-        case 'bunexe': redirectUrl = '/bunexe'; break;
-        case 'parent': redirectUrl = '/parent'; break;
+      console.log('✅ Utilisateur déjà connecté');
+      // Vérifier si doit changer son mot de passe
+      if (user.doit_changer_mdp) {
+        console.log('⚠️ Doit changer son mot de passe');
+        navigate('/changer-mot-de-passe');
+      } else {
+        let redirectUrl = '/dashboard';
+        switch (user.role) {
+          case 'admin': redirectUrl = '/admin'; break;
+          case 'secretariat': redirectUrl = '/secretariat'; break;
+          case 'bunexe': redirectUrl = '/bunexe'; break;
+          case 'parent': redirectUrl = '/parent'; break;
+        }
+        navigate(redirectUrl);
       }
-      navigate(redirectUrl);
     }
   }, [user, navigate]);
 
@@ -50,12 +56,9 @@ const Connexion: React.FC = () => {
     console.log('📤 Tentative de connexion pour:', email);
     
     try {
-      // Utiliser la fonction login du contexte
       await login(email, password);
-      
-      // La redirection se fera automatiquement via l'useEffect ci-dessus
-      console.log('✅ Connexion réussie, redirection automatique...');
-      
+      // La redirection se fera via l'useEffect
+      console.log('✅ Connexion réussie');
     } catch (err: any) {
       console.error('❌ Erreur login:', err.response?.data);
       
