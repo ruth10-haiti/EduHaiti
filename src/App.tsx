@@ -93,7 +93,7 @@ function App() {
           <Route path="/connexion" element={<Connexion />} />
           <Route path="/inscription" element={<Inscription />} />
           <Route path="/verifier-email/:token" element={<VerifierEmail />} />
-          <Route path="/changer-mot-de-passe" element={<ChangerMotDePasse />} /> {/* ← NOUVEAU */}
+          <Route path="/changer-mot-de-passe" element={<ChangerMotDePasse />} /> 
           
           {/* Route de test */}
           <Route path="/dashboard-test" element={<DashboardTest />} />
