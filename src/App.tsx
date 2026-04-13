@@ -10,7 +10,7 @@ import AdminDashboard from './pages/Dashboard/AdminDashboard';
 import SecretariatDashboard from './pages/Dashboard/SecretariatDashboard';
 import BunexeDashboard from './pages/Dashboard/BunexeDashboard';
 import ParentDashboard from './pages/Dashboard/ParentDashboard';
-
+import InscriptionAdmin from './pages/InscriptionAdmin'; 
 // Composant de test temporaire
 const DashboardTest = () => {
   const { user, logout } = useAuth();
@@ -92,6 +92,7 @@ function App() {
           <Route path="/" element={<Accueil />} />
           <Route path="/connexion" element={<Connexion />} />
           <Route path="/inscription" element={<Inscription />} />
+          <Route path="/inscription-admin" element={<InscriptionAdmin />} /> 
           <Route path="/verifier-email/:token" element={<VerifierEmail />} />
           <Route path="/changer-mot-de-passe" element={<ChangerMotDePasse />} /> 
           
