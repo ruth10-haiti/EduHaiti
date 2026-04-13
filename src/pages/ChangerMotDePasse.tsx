@@ -33,7 +33,8 @@ const ChangerMotDePasse: React.FC = () => {
     
     setLoading(true);
     try {
-      await api.post('/admin/changer-mot-de-passe', {
+      // ✅ CORRECTION : Utilise /auth/changer-mot-de-passe (accessible à tous)
+      await api.post('/auth/changer-mot-de-passe', {
         ancien_mot_de_passe: ancienMdp,
         nouveau_mot_de_passe: nouveauMdp
       });
@@ -71,6 +72,7 @@ const ChangerMotDePasse: React.FC = () => {
             value={ancienMdp} 
             onChange={e => setAncienMdp(e.target.value)} 
             required 
+            autoComplete="current-password"
           />
           <input 
             type="password" 
@@ -78,6 +80,7 @@ const ChangerMotDePasse: React.FC = () => {
             value={nouveauMdp} 
             onChange={e => setNouveauMdp(e.target.value)} 
             required 
+            autoComplete="new-password"
           />
           <input 
             type="password" 
@@ -85,6 +88,7 @@ const ChangerMotDePasse: React.FC = () => {
             value={confirmation} 
             onChange={e => setConfirmation(e.target.value)} 
             required 
+            autoComplete="new-password"
           />
           <button type="submit" disabled={loading}>
             {loading ? 'Changement...' : 'Changer mon mot de passe'}
