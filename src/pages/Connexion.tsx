@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import api from '../services/api';
 import styles from './styles/Connexion.module.css';
 
 const Connexion: React.FC = () => {
@@ -11,18 +10,33 @@ const Connexion: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [needVerification, setNeedVerification] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
-  const { login } = useAuth();
+  const { login, user } = useAuth(); // ✅ Ajout de user pour suivre l'état
   const navigate = useNavigate();
   const location = useLocation();
+
+  // ✅ Redirection automatique quand l'utilisateur est connecté
+  useEffect(() => {
+    console.log('🔍 Vérification user dans Connexion:', user);
+    
+    if (user) {
+      console.log('✅ Utilisateur déjà connecté, redirection vers dashboard');
+      let redirectUrl = '/dashboard';
+      switch (user.role) {
+        case 'admin': redirectUrl = '/admin'; break;
+        case 'secretariat': redirectUrl = '/secretariat'; break;
+        case 'bunexe': redirectUrl = '/bunexe'; break;
+        case 'parent': redirectUrl = '/parent'; break;
+      }
+      navigate(redirectUrl);
+    }
+  }, [user, navigate]);
 
   // Vérifier si on vient d'une vérification email réussie
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    console.log('🔍 URL params:', params.toString());
     if (params.get('verified') === 'true') {
       setError('');
       setResendMessage('✅ Email vérifié avec succès ! Vous pouvez maintenant vous connecter.');
-      console.log('✅ Email vérifié détecté');
     }
   }, [location]);
 
@@ -36,44 +50,19 @@ const Connexion: React.FC = () => {
     console.log('📤 Tentative de connexion pour:', email);
     
     try {
-      console.log('📡 Envoi requête à /api/auth/connexion');
-      const response = await api.post('/auth/connexion', { 
-        email, 
-        mot_de_passe: password 
-      });
+      // Utiliser la fonction login du contexte
+      await login(email, password);
       
-      console.log('📥 Réponse reçue:', response.data);
-      console.log('   - success:', response.data.success);
-      console.log('   - redirectUrl:', response.data.redirectUrl);
-      console.log('   - user:', response.data.user);
+      // La redirection se fera automatiquement via l'useEffect ci-dessus
+      console.log('✅ Connexion réussie, redirection automatique...');
       
-      if (response.data.success) {
-        console.log('✅ Connexion réussie !');
-        console.log('💾 Stockage token dans localStorage');
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        
-        console.log('🔐 Appel login du contexte');
-        login(response.data.token, response.data.user);
-        
-        const redirectTo = response.data.redirectUrl || '/dashboard';
-        console.log('🚀 Redirection vers:', redirectTo);
-        navigate(redirectTo);
-      } else {
-        console.log('❌ success = false dans la réponse');
-        setError('Erreur de connexion');
-      }
     } catch (err: any) {
-      console.error('❌ Erreur complète:', err);
-      console.error('   - status:', err.response?.status);
-      console.error('   - data:', err.response?.data);
+      console.error('❌ Erreur login:', err.response?.data);
       
       if (err.response?.status === 403 && err.response?.data?.needVerification) {
-        console.log('🔔 Email non vérifié');
         setNeedVerification(true);
         setError(err.response.data.message || 'Veuillez vérifier votre email avant de vous connecter');
       } else if (err.response?.status === 401) {
-        console.log('🔑 Mauvais identifiants');
         setError('Email ou mot de passe incorrect');
       } else {
         setError(err.response?.data?.message || err.response?.data?.error || 'Erreur de connexion');
@@ -89,15 +78,13 @@ const Connexion: React.FC = () => {
       return;
     }
     
-    console.log('📧 Demande de renvoi vérification pour:', email);
     setResendMessage('');
     setLoading(true);
     try {
-      const response = await api.post('/auth/renvoyer-verification', { email });
-      console.log('📥 Réponse renvoi:', response.data);
+      const api = (await import('../services/api')).default;
+      await api.post('/auth/renvoyer-verification', { email });
       setResendMessage('✅ Un nouvel email de vérification a été envoyé ! Vérifiez votre boîte mail.');
     } catch (err: any) {
-      console.error('❌ Erreur renvoi:', err.response?.data);
       setResendMessage('❌ ' + (err.response?.data?.error || 'Erreur lors du renvoi'));
     } finally {
       setLoading(false);
@@ -125,7 +112,7 @@ const Connexion: React.FC = () => {
                 onChange={e => setEmail(e.target.value)} 
                 required 
                 disabled={loading}
-                placeholder="exemple@email.com"
+                autoComplete="email"
               />
             </div>
             <div className={styles.inputGroup}>
@@ -136,7 +123,7 @@ const Connexion: React.FC = () => {
                 onChange={e => setPassword(e.target.value)} 
                 required 
                 disabled={loading}
-                placeholder="••••••••"
+                autoComplete="current-password"
               />
             </div>
             <button type="submit" className={styles.btnPrimary} disabled={loading}>
