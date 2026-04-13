@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import api from '../services/api';
 import styles from './styles/Connexion.module.css';
 
 const Connexion: React.FC = () => {
@@ -10,7 +11,7 @@ const Connexion: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [needVerification, setNeedVerification] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
-  const { login, user } = useAuth();
+  const {  user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -20,7 +21,6 @@ const Connexion: React.FC = () => {
     
     if (user) {
       console.log('✅ Utilisateur déjà connecté');
-      // Vérifier si doit changer son mot de passe
       if (user.doit_changer_mdp) {
         console.log('⚠️ Doit changer son mot de passe');
         navigate('/changer-mot-de-passe');
@@ -56,9 +56,35 @@ const Connexion: React.FC = () => {
     console.log('📤 Tentative de connexion pour:', email);
     
     try {
-      await login(email, password);
-      // La redirection se fera via l'useEffect
-      console.log('✅ Connexion réussie');
+      // Appel direct à l'API au lieu de passer par login
+      const response = await api.post('/auth/connexion', {
+        email: email,
+        mot_de_passe: password
+      });
+      
+      console.log('📥 Réponse:', response.data);
+      
+      const { token, user: userData } = response.data;
+      
+      if (token && userData) {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        // Redirection manuelle
+        if (userData.doit_changer_mdp) {
+          navigate('/changer-mot-de-passe');
+        } else {
+          let redirectUrl = '/dashboard';
+          switch (userData.role) {
+            case 'admin': redirectUrl = '/admin'; break;
+            case 'secretariat': redirectUrl = '/secretariat'; break;
+            case 'bunexe': redirectUrl = '/bunexe'; break;
+            case 'parent': redirectUrl = '/parent'; break;
+          }
+          navigate(redirectUrl);
+          window.location.reload(); // Recharger pour mettre à jour le contexte
+        }
+      }
     } catch (err: any) {
       console.error('❌ Erreur login:', err.response?.data);
       
@@ -84,7 +110,6 @@ const Connexion: React.FC = () => {
     setResendMessage('');
     setLoading(true);
     try {
-      const api = (await import('../services/api')).default;
       await api.post('/auth/renvoyer-verification', { email });
       setResendMessage('✅ Un nouvel email de vérification a été envoyé ! Vérifiez votre boîte mail.');
     } catch (err: any) {
