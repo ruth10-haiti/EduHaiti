@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { School, MapPin, Phone, Trash2, Edit2, CheckCircle, AlertCircle, X } from 'lucide-react';
 import api from '../services/api';
-import styles from '../styles/AdminDashboard.module.css';
+import styles from '../pages/styles/AdminDashboard.module.css';
 
 interface Ecole {
   id: number;
