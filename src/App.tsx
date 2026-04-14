@@ -1,4 +1,4 @@
-// src/App.tsx (VERSION CORRIGÉE)
+// src/App.tsx (CORRECTION FINALE)
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -12,42 +12,6 @@ import SecretariatDashboard from './pages/Dashboard/SecretariatDashboard';
 import BunexeDashboard from './pages/Dashboard/BunexeDashboard';
 import ParentDashboard from './pages/Dashboard/ParentDashboard';
 import InscriptionAdmin from './pages/InscriptionAdmin';
-
-
-// Composant de test temporaire
-const DashboardTest = () => {
-  const { user, logout } = useAuth();
-  return (
-    <div style={{ padding: 20, fontFamily: 'Arial' }}>
-      <h1>✅ Dashboard Test - Connexion réussie !</h1>
-      <div style={{ background: '#e8f5e9', padding: 15, borderRadius: 8, marginTop: 20 }}>
-        <p><strong>Nom :</strong> {user?.nom} {user?.prenom}</p>
-        <p><strong>Email :</strong> {user?.email}</p>
-        <p><strong>Rôle :</strong> {user?.role}</p>
-        <p><strong>ID :</strong> {user?.id}</p>
-      </div>
-      <button 
-        onClick={() => {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          logout();
-          window.location.href = '/connexion';
-        }}
-        style={{
-          marginTop: 20,
-          padding: '10px 20px',
-          background: '#dc3545',
-          color: 'white',
-          border: 'none',
-          borderRadius: 5,
-          cursor: 'pointer'
-        }}
-      >
-        Se déconnecter
-      </button>
-    </div>
-  );
-};
 
 const DashboardRedirect = () => {
   const { user } = useAuth();
@@ -93,26 +57,21 @@ function App() {
           <Route path="/verifier-email/:token" element={<VerifierEmail />} />
           <Route path="/changer-mot-de-passe" element={<ChangerMotDePasse />} /> 
           
-          {/* Route de test */}
-          <Route path="/dashboard-test" element={<DashboardTest />} />
           <Route path="/dashboard" element={<DashboardRedirect />} />
 
-          {/* Routes protégées - ADMIN avec sous-routes */}
+          {/* Routes protégées - AVEC /* POUR LES SOUS-ROUTES */}
           <Route element={<ProtectedRoute roles={['admin']} />}>
-            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/*" element={<AdminDashboard />} />
           </Route>
           
-          {/* Routes protégées - SECRETARIAT avec sous-routes */}
           <Route element={<ProtectedRoute roles={['secretariat']} />}>
-            <Route path="/secretariat" element={<SecretariatDashboard />} />
+            <Route path="/secretariat/*" element={<SecretariatDashboard />} />
           </Route>
           
-          {/* Routes protégées - BUNEXE avec sous-routes */}
           <Route element={<ProtectedRoute roles={['bunexe']} />}>
-            <Route path="/bunexe" element={<BunexeDashboard />} />
+            <Route path="/bunexe/*" element={<BunexeDashboard />} />
           </Route>
           
-          {/* Routes protégées - PARENT */}
           <Route element={<ProtectedRoute roles={['parent']} />}>
             <Route path="/parent/*" element={<ParentDashboard />} />
           </Route>
