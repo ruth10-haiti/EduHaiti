@@ -13,15 +13,6 @@ import BunexeDashboard from './pages/Dashboard/BunexeDashboard';
 import ParentDashboard from './pages/Dashboard/ParentDashboard';
 import InscriptionAdmin from './pages/InscriptionAdmin';
 
-// Import des nouvelles pages
-import { UtilisateursListe } from './pages/admin/UtilisateursListe';
-import { EcolesListe } from './pages/admin/EcolesListe';
-import { ExamensPage } from './pages/bunexe/ExamensPage';
-import { InscriptionsExamensPage } from './pages/bunexe/InscriptionsExamensPage';
-import { ResultatsPage } from './pages/bunexe/ResultatsPage';
-import { ElevesPage } from './pages/secretariat/ElevesPage';
-import { InscriptionsPage } from './pages/secretariat/InscriptionsPage';
-import { DocumentsPage } from './pages/secretariat/DocumentsPage';
 
 // Composant de test temporaire
 const DashboardTest = () => {
@@ -109,24 +100,16 @@ function App() {
           {/* Routes protégées - ADMIN avec sous-routes */}
           <Route element={<ProtectedRoute roles={['admin']} />}>
             <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/utilisateurs" element={<UtilisateursListe />} />
-            <Route path="/admin/ecoles" element={<EcolesListe />} />
           </Route>
           
           {/* Routes protégées - SECRETARIAT avec sous-routes */}
           <Route element={<ProtectedRoute roles={['secretariat']} />}>
             <Route path="/secretariat" element={<SecretariatDashboard />} />
-            <Route path="/secretariat/eleves" element={<ElevesPage />} />
-            <Route path="/secretariat/inscriptions" element={<InscriptionsPage />} />
-            <Route path="/secretariat/documents" element={<DocumentsPage />} />
           </Route>
           
           {/* Routes protégées - BUNEXE avec sous-routes */}
           <Route element={<ProtectedRoute roles={['bunexe']} />}>
             <Route path="/bunexe" element={<BunexeDashboard />} />
-            <Route path="/bunexe/examens" element={<ExamensPage />} />
-            <Route path="/bunexe/inscriptions" element={<InscriptionsExamensPage />} />
-            <Route path="/bunexe/resultats" element={<ResultatsPage />} />
           </Route>
           
           {/* Routes protégées - PARENT */}
