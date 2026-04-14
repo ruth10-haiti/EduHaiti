@@ -1,3 +1,4 @@
+// src/App.tsx (VERSION CORRIGÉE)
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -5,12 +6,23 @@ import Accueil from './pages/Accueil';
 import Connexion from './pages/Connexion';
 import Inscription from './pages/Inscription';
 import VerifierEmail from './pages/VerifierEmail';
-import ChangerMotDePasse from './pages/ChangerMotDePasse'; // ← NOUVEAU
+import ChangerMotDePasse from './pages/ChangerMotDePasse';
 import AdminDashboard from './pages/Dashboard/AdminDashboard';
 import SecretariatDashboard from './pages/Dashboard/SecretariatDashboard';
 import BunexeDashboard from './pages/Dashboard/BunexeDashboard';
 import ParentDashboard from './pages/Dashboard/ParentDashboard';
-import InscriptionAdmin from './pages/InscriptionAdmin'; 
+import InscriptionAdmin from './pages/InscriptionAdmin';
+
+// Import des nouvelles pages
+import { UtilisateursListe } from './pages/admin/UtilisateursListe';
+import { EcolesListe } from './pages/admin/EcolesListe';
+import { ExamensPage } from './pages/bunexe/ExamensPage';
+import { InscriptionsExamensPage } from './pages/bunexe/InscriptionsExamensPage';
+import { ResultatsPage } from './pages/bunexe/ResultatsPage';
+import { ElevesPage } from './pages/secretariat/ElevesPage';
+import { InscriptionsPage } from './pages/secretariat/InscriptionsPage';
+import { DocumentsPage } from './pages/secretariat/DocumentsPage';
+
 // Composant de test temporaire
 const DashboardTest = () => {
   const { user, logout } = useAuth();
@@ -55,7 +67,6 @@ const DashboardRedirect = () => {
     return <Navigate to="/connexion" replace />;
   }
   
-  // Vérifier si l'utilisateur doit changer son mot de passe
   if (user.doit_changer_mdp) {
     console.log('⚠️ Utilisateur doit changer son mot de passe');
     return <Navigate to="/changer-mot-de-passe" replace />;
@@ -65,19 +76,14 @@ const DashboardRedirect = () => {
   
   switch (user.role) {
     case 'admin': 
-      console.log('➡️ Redirection vers /admin');
       return <Navigate to="/admin" replace />;
     case 'secretariat': 
-      console.log('➡️ Redirection vers /secretariat');
       return <Navigate to="/secretariat" replace />;
     case 'bunexe': 
-      console.log('➡️ Redirection vers /bunexe');
       return <Navigate to="/bunexe" replace />;
     case 'parent': 
-      console.log('➡️ Redirection vers /parent');
       return <Navigate to="/parent" replace />;
     default: 
-      console.log('➡️ Redirection par défaut vers /');
       return <Navigate to="/" replace />;
   }
 };
@@ -100,21 +106,35 @@ function App() {
           <Route path="/dashboard-test" element={<DashboardTest />} />
           <Route path="/dashboard" element={<DashboardRedirect />} />
 
-          {/* Routes protégées */}
+          {/* Routes protégées - ADMIN avec sous-routes */}
           <Route element={<ProtectedRoute roles={['admin']} />}>
-            <Route path="/admin/*" element={<AdminDashboard />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/utilisateurs" element={<UtilisateursListe />} />
+            <Route path="/admin/ecoles" element={<EcolesListe />} />
           </Route>
+          
+          {/* Routes protégées - SECRETARIAT avec sous-routes */}
           <Route element={<ProtectedRoute roles={['secretariat']} />}>
-            <Route path="/secretariat/*" element={<SecretariatDashboard />} />
+            <Route path="/secretariat" element={<SecretariatDashboard />} />
+            <Route path="/secretariat/eleves" element={<ElevesPage />} />
+            <Route path="/secretariat/inscriptions" element={<InscriptionsPage />} />
+            <Route path="/secretariat/documents" element={<DocumentsPage />} />
           </Route>
+          
+          {/* Routes protégées - BUNEXE avec sous-routes */}
           <Route element={<ProtectedRoute roles={['bunexe']} />}>
-            <Route path="/bunexe/*" element={<BunexeDashboard />} />
+            <Route path="/bunexe" element={<BunexeDashboard />} />
+            <Route path="/bunexe/examens" element={<ExamensPage />} />
+            <Route path="/bunexe/inscriptions" element={<InscriptionsExamensPage />} />
+            <Route path="/bunexe/resultats" element={<ResultatsPage />} />
           </Route>
+          
+          {/* Routes protégées - PARENT */}
           <Route element={<ProtectedRoute roles={['parent']} />}>
             <Route path="/parent/*" element={<ParentDashboard />} />
           </Route>
           
-          {/* Fallback - capture toutes les routes non définies */}
+          {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>

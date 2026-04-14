@@ -1,5 +1,7 @@
+// src/contexts/AuthContext.tsx (VERSION CORRIGÉE)
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import api from '../services/api';
+import toast from 'react-hot-toast';
 
 interface User {
   id: number;
@@ -8,7 +10,7 @@ interface User {
   email: string;
   role: 'admin' | 'secretariat' | 'bunexe' | 'parent';
   id_ecole?: number;
-  doit_changer_mdp?: boolean; // ← AJOUTÉ
+  doit_changer_mdp?: boolean;
 }
 
 interface AuthContextType {
@@ -17,6 +19,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
+  hasRole: (roles: string[]) => boolean;  // ← Déclaré dans l'interface
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,6 +28,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // ✅ Fonction hasRole - AJOUTÉE
+  const hasRole = (roles: string[]): boolean => {
+    if (!user) return false;
+    return roles.includes(user.role);
+  };
 
   // ✅ Chargement initial depuis localStorage
   useEffect(() => {
@@ -43,7 +52,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(parsedUser);
         console.log('✅ Utilisateur chargé depuis localStorage:', parsedUser);
         
-        api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+        // Vérifier que api.defaults.headers existe
+        if (api.defaults?.headers) {
+          api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+        }
       } catch (error) {
         console.error('❌ Erreur parsing user:', error);
         localStorage.removeItem('token');
@@ -94,14 +106,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       localStorage.setItem('token', newToken);
       localStorage.setItem('user', JSON.stringify(userWithFlag));
       
-      api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+      // Vérifier que api.defaults.headers existe
+      if (api.defaults?.headers) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+      }
       
       setToken(newToken);
       setUser(userWithFlag);
       
       console.log('✅ Login réussi pour:', userData.email, 'doit_changer_mdp:', doit_changer_mdp);
+      toast.success('Connexion réussie !');
+      
+      // Redirection après login
+      if (doit_changer_mdp) {
+        window.location.href = '/changer-mot-de-passe';
+      } else {
+        // Redirection selon le rôle
+        switch (userData.role) {
+          case 'admin':
+            window.location.href = '/admin';
+            break;
+          case 'secretariat':
+            window.location.href = '/secretariat';
+            break;
+          case 'bunexe':
+            window.location.href = '/bunexe';
+            break;
+          case 'parent':
+            window.location.href = '/parent';
+            break;
+          default:
+            window.location.href = '/';
+        }
+      }
     } catch (error: any) {
       console.error('❌ Erreur login:', error.response?.data || error.message);
+      toast.error(error.response?.data?.message || 'Erreur de connexion');
       throw error;
     }
   };
@@ -112,16 +152,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     
-    delete api.defaults.headers.common['Authorization'];
+    if (api.defaults?.headers) {
+      delete api.defaults.headers.common['Authorization'];
+    }
     
     setToken(null);
     setUser(null);
+    
+    toast.success('Déconnexion réussie');
+    window.location.href = '/connexion';
   };
 
   console.log('📊 AuthProvider état - isLoading:', isLoading, 'user:', user?.role);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      token, 
+      login, 
+      logout, 
+      isLoading,
+      hasRole  // ← AJOUTÉ - la fonction hasRole est maintenant exposée
+    }}>
       {children}
     </AuthContext.Provider>
   );
