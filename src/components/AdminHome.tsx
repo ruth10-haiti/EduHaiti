@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { School, Users, GraduationCap, FileText } from 'lucide-react';
 import api from '../services/api';
-import styles from '../styles/AdminDashboard.module.css';
+import styles from '../../styles/AdminDashboard.module.css';
 
 const AdminHome: React.FC = () => {
   const [stats, setStats] = useState({

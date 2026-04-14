@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {  Plus, Edit2, Trash2, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import styles from '../styles/AdminDashboard.module.css';
+import styles from '../../styles/AdminDashboard.module.css';
 
 const GestionEleves: React.FC = () => {
   const [eleves, setEleves] = useState<any[]>([]);

@@ -1,4 +1,3 @@
-// src/App.tsx (CORRECTION FINALE)
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';

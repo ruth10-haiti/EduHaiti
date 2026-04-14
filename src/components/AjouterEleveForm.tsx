@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { GraduationCap, User, Calendar, MapPin, Phone, Mail, Home, Save, X } from 'lucide-react';
 import api from '../services/api';
-import styles from '../styles/AdminDashboard.module.css';
+import styles from '../../styles/AdminDashboard.module.css';
 
 const AjouterEleveForm: React.FC = () => {
   const { id } = useParams();

@@ -8,6 +8,7 @@ import GestionEleves from '../../components/GestionEleves';
 import AjouterEleveForm from '../../components/AjouterEleveForm';
 import GestionExamens from '../../components/GestionExamens';
 
+
 const AdminDashboard: React.FC = () => {
   return (
     <Routes>

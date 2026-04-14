@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Plus, Edit2, Trash2, Clock,  Award } from 'lucide-react';
 import api from '../services/api';
-import styles from '../styles/AdminDashboard.module.css';
+import styles from '../../styles/AdminDashboard.module.css';
 
 const GestionExamens: React.FC = () => {
   const [examens, setExamens] = useState<any[]>([]);
