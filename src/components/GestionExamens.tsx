@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, Edit2, Trash2, Clock, Award, FileText, MapPin, Users, DollarSign, AlertCircle } from 'lucide-react';
+import { Calendar, Plus, Edit2, Trash2, Clock, Award, FileText, MapPin, Users, DollarSign } from 'lucide-react';
 import api from '../services/api';
 import styles from "../pages/styles/AdminDashboard.module.css";
 

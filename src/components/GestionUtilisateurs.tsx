@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Trash2, Mail, Building, AlertCircle } from 'lucide-react';
+import { UserPlus, Trash2, Mail, Building } from 'lucide-react';
 import api from '../services/api';
 import styles from "../pages/styles/AdminDashboard.module.css";
 
@@ -124,7 +124,7 @@ const GestionUtilisateurs: React.FC = () => {
               <label className={styles.label}><Mail size={16} /> Email *</label>
               <input 
                 type="email" 
-                placeholder="exemple@email.com" 
+                placeholder="votre@email.com" 
                 className={`${styles.input} ${errors.email ? styles.inputError : ''}`}
                 required
                 value={formData.email} 
