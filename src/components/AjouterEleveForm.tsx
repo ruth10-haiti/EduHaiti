@@ -1,17 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { GraduationCap, User, Calendar, MapPin, Phone, Mail, Home, Save, X } from 'lucide-react';
+import { GraduationCap, User, Calendar, MapPin, Phone, Mail, Home, Save, X, Link as LinkIcon } from 'lucide-react';
 import api from '../services/api';
 import styles from '../pages/styles/AdminDashboard.module.css';
+
+// Types
+interface Ecole {
+  id: number;
+  nom: string;
+  adresse?: string;
+  telephone?: string;
+}
+
+interface EleveForm {
+  nom: string;
+  prenom: string;
+  date_naissance: string;
+  lieu_naissance: string;
+  sexe: string;
+  id_ecole: string;
+  classe: string;
+  tel_parent: string;
+  email_parent: string;
+  adresse: string;
+}
 
 const AjouterEleveForm: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [ecoles, setEcoles] = useState<any[]>([]);
-  const [form, setForm] = useState({
+  const [ecoles, setEcoles] = useState<Ecole[]>([]);
+  const [showParentLink, setShowParentLink] = useState(false);
+  const [parentEmail, setParentEmail] = useState('');
+  const [matriculeGenere, setMatriculeGenere] = useState<string | null>(null);
+  const [form, setForm] = useState<EleveForm>({
     nom: '', prenom: '', date_naissance: '', lieu_naissance: '',
-    sexe: 'M', matricule_national: '', id_ecole: '', classe: '',
+    sexe: 'M', id_ecole: '', classe: '',
     tel_parent: '', email_parent: '', adresse: ''
   });
 
@@ -44,12 +68,47 @@ const AjouterEleveForm: React.FC = () => {
     try {
       if (id) {
         await api.put(`/eleves/${id}`, form);
+        alert('✅ Élève modifié avec succès');
+        navigate('/admin/eleves');
       } else {
-        await api.post('/eleves', form);
+        const response = await api.post('/eleves', form);
+        if (response.data.matricule_national) {
+          setMatriculeGenere(response.data.matricule_national);
+          alert(`✅ Élève créé avec succès !\n📌 Matricule: ${response.data.matricule_national}`);
+          setShowParentLink(true);
+        } else {
+          alert('✅ Élève créé avec succès');
+          navigate('/admin/eleves');
+        }
       }
+    } catch (err: any) {
+      console.error('Erreur:', err.response?.data);
+      alert(err.response?.data?.message || 'Erreur lors de l\'enregistrement');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLinkParent = async () => {
+    if (!parentEmail) {
+      alert('Veuillez entrer l\'email du parent');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const eleveId = id || (await api.get('/eleves')).data.find((e: any) => e.matricule_national === matriculeGenere)?.id;
+      
+      await api.post(`/eleves/${eleveId}/lier-parent`, {
+        id_eleve: eleveId,
+        email_parent: parentEmail
+      });
+      
+      alert('✅ Parent lié avec succès ! Un email a été envoyé au parent.');
+      setShowParentLink(false);
       navigate('/admin/eleves');
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Erreur');
+      alert(err.response?.data?.message || 'Erreur lors de la liaison');
     } finally {
       setLoading(false);
     }
@@ -105,7 +164,7 @@ const AjouterEleveForm: React.FC = () => {
             <label className={styles.label}><GraduationCap size={16} /> École</label>
             <select className={styles.input} value={form.id_ecole} onChange={e => setForm({...form, id_ecole: e.target.value})}>
               <option value="">Sélectionnez une école</option>
-              {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
+              {ecoles.map((ecole: Ecole) => <option key={ecole.id} value={ecole.id}>{ecole.nom}</option>)}
             </select>
           </div>
         </div>
@@ -134,10 +193,9 @@ const AjouterEleveForm: React.FC = () => {
             value={form.adresse} onChange={e => setForm({...form, adresse: e.target.value})} />
         </div>
 
-        {/* Note pour le matricule */}
         <div style={{ padding: 12, background: '#e3f2fd', borderRadius: 8, marginBottom: 24 }}>
           <p style={{ fontSize: 13, color: '#1976d2' }}>
-            ℹ️ Le matricule national est généré automatiquement par le système. Vous n'avez pas besoin de le renseigner.
+            ℹ️ Le matricule national sera généré automatiquement par le système après l'enregistrement.
           </p>
         </div>
 
@@ -152,6 +210,47 @@ const AjouterEleveForm: React.FC = () => {
           </button>
         </div>
       </form>
+
+      {showParentLink && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className={styles.formCard} style={{ maxWidth: 500, width: '90%' }}>
+            <h3 style={{ marginBottom: 16 }}>🔗 Lier un parent à l'élève</h3>
+            <p style={{ marginBottom: 16, color: '#6c757d' }}>
+              Le matricule <strong>{matriculeGenere}</strong> a été généré automatiquement.
+            </p>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Email du parent</label>
+              <input
+                type="email"
+                className={styles.input}
+                placeholder="parent@exemple.com"
+                value={parentEmail}
+                onChange={(e) => setParentEmail(e.target.value)}
+              />
+              <small style={{ color: '#6c757d', marginTop: 4, display: 'block' }}>
+                Un compte parent sera créé automatiquement si nécessaire.
+              </small>
+            </div>
+            <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+              <button onClick={handleLinkParent} className={styles.primaryButton} disabled={loading}>
+                <LinkIcon size={18} />
+                {loading ? 'Traitement...' : 'Lier le parent'}
+              </button>
+              <button onClick={() => navigate('/admin/eleves')} className={styles.secondaryButton}>
+                Plus tard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
