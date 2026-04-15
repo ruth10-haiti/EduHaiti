@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { School, MapPin, Phone, Trash2, Edit2, CheckCircle, AlertCircle, X, Search } from 'lucide-react';
+import { School, MapPin, Phone, Trash2, Edit2, CheckCircle, AlertCircle, X, Search, User, Mail } from 'lucide-react';
 import api from '../services/api';
 import styles from "../pages/styles/AdminDashboard.module.css";
 
@@ -8,30 +8,77 @@ interface Ecole {
   nom: string;
   adresse: string;
   telephone: string;
+  responsable_id?: number;
+  responsable_nom?: string;
+  responsable_email?: string;
+}
+
+interface Utilisateur {
+  id: number;
+  nom: string;
+  prenom: string;
+  email: string;
+  role: string;
+  id_ecole: number | null;
 }
 
 const GestionEcoles: React.FC = () => {
   const [ecoles, setEcoles] = useState<Ecole[]>([]);
+  const [utilisateurs, setUtilisateurs] = useState<Utilisateur[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingEcole, setEditingEcole] = useState<Ecole | null>(null);
-  const [formData, setFormData] = useState({ nom: '', adresse: '', telephone: '' });
+  const [formData, setFormData] = useState({ 
+    nom: '', 
+    adresse: '', 
+    telephone: '',
+    responsable_id: ''
+  });
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     loadEcoles();
+    loadUtilisateurs();
   }, []);
 
   const loadEcoles = async () => {
     setLoading(true);
     try {
       const res = await api.get('/admin/ecoles');
-      setEcoles(res.data);
+      // Récupérer les responsables pour chaque école
+      const ecolesAvecResponsables = await Promise.all(
+        res.data.map(async (ecole: any) => {
+          try {
+            const usersRes = await api.get('/admin/utilisateurs');
+            const responsable = usersRes.data.find((u: any) => u.id_ecole === ecole.id && u.role === 'secretariat');
+            return { 
+              ...ecole, 
+              responsable_id: responsable?.id,
+              responsable_nom: responsable ? `${responsable.prenom} ${responsable.nom}` : null,
+              responsable_email: responsable?.email
+            };
+          } catch {
+            return { ...ecole, responsable_id: null, responsable_nom: null, responsable_email: null };
+          }
+        })
+      );
+      setEcoles(ecolesAvecResponsables);
     } catch (err) {
       showNotification('error', 'Erreur lors du chargement des écoles');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadUtilisateurs = async () => {
+    try {
+      const res = await api.get('/admin/utilisateurs');
+      // Filtrer seulement les utilisateurs avec rôle secretariat et sans école assignée
+      const secretariats = res.data.filter((u: any) => u.role === 'secretariat');
+      setUtilisateurs(secretariats);
+    } catch (err) {
+      console.error('Erreur chargement utilisateurs:', err);
     }
   };
 
@@ -70,16 +117,37 @@ const GestionEcoles: React.FC = () => {
         return;
       }
 
+      let ecoleId: number;
+      
       if (editingEcole) {
-        await api.put(`/admin/ecoles/${editingEcole.id}`, formData);
+        await api.put(`/admin/ecoles/${editingEcole.id}`, {
+          nom: formData.nom,
+          adresse: formData.adresse,
+          telephone: formData.telephone
+        });
+        ecoleId = editingEcole.id;
         showNotification('success', 'École modifiée avec succès');
       } else {
-        await api.post('/admin/ecoles', formData);
+        const response = await api.post('/admin/ecoles', {
+          nom: formData.nom,
+          adresse: formData.adresse,
+          telephone: formData.telephone
+        });
+        ecoleId = response.data.id;
         showNotification('success', 'École ajoutée avec succès');
+      }
+
+      // Assigner le responsable à l'école
+      if (formData.responsable_id) {
+        await api.put(`/admin/utilisateurs/${formData.responsable_id}/assigner-ecole`, {
+          id_ecole: ecoleId
+        });
+        showNotification('success', 'Responsable assigné à l\'école avec succès');
       }
       
       resetForm();
       loadEcoles();
+      loadUtilisateurs();
     } catch (err: any) {
       showNotification('error', err.response?.data?.message || 'Erreur');
     } finally {
@@ -100,19 +168,29 @@ const GestionEcoles: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ nom: '', adresse: '', telephone: '' });
+    setFormData({ nom: '', adresse: '', telephone: '', responsable_id: '' });
     setEditingEcole(null);
     setShowForm(false);
   };
 
   const editEcole = (ecole: Ecole) => {
     setEditingEcole(ecole);
-    setFormData({ nom: ecole.nom, adresse: ecole.adresse || '', telephone: ecole.telephone || '' });
+    setFormData({ 
+      nom: ecole.nom, 
+      adresse: ecole.adresse || '', 
+      telephone: ecole.telephone || '',
+      responsable_id: ecole.responsable_id ? String(ecole.responsable_id) : ''
+    });
     setShowForm(true);
   };
 
   const filteredEcoles = ecoles.filter(e => 
     e.nom.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Filtrer les responsables disponibles (sans école ou l'école en cours d'édition)
+  const responsablesDisponibles = utilisateurs.filter(u => 
+    !u.id_ecole || (editingEcole && u.id_ecole === editingEcole.id)
   );
 
   return (
@@ -130,7 +208,7 @@ const GestionEcoles: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
           <h1 className={styles.formTitle}>🏫 Gestion des écoles</h1>
-          <p className={styles.formSubtitle}>Ajoutez, modifiez ou supprimez les établissements scolaires</p>
+          <p className={styles.formSubtitle}>Ajoutez, modifiez ou supprimez les établissements scolaires et assignez leurs responsables</p>
         </div>
         {!showForm && (
           <button onClick={() => setShowForm(true)} className={styles.primaryButton}>
@@ -158,6 +236,7 @@ const GestionEcoles: React.FC = () => {
                 ⚠️ Le nom doit être unique. Une vérification sera effectuée.
               </small>
             </div>
+            
             <div className={styles.formGroup}>
               <label className={styles.label}><MapPin size={16} /> Adresse</label>
               <input
@@ -168,6 +247,7 @@ const GestionEcoles: React.FC = () => {
                 placeholder="Ex: Rue des Écoles, Port-au-Prince"
               />
             </div>
+            
             <div className={styles.formGroup}>
               <label className={styles.label}><Phone size={16} /> Téléphone</label>
               <input
@@ -178,6 +258,26 @@ const GestionEcoles: React.FC = () => {
                 placeholder="Ex: +509 1234 5678"
               />
             </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}><User size={16} /> Responsable (Secrétariat)</label>
+              <select
+                className={styles.input}
+                value={formData.responsable_id}
+                onChange={(e) => setFormData({ ...formData, responsable_id: e.target.value })}
+              >
+                <option value="">-- Sélectionner un responsable --</option>
+                {responsablesDisponibles.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.prenom} {user.nom} - {user.email}
+                  </option>
+                ))}
+              </select>
+              <small style={{ color: '#6c757d', fontSize: 12, marginTop: 4, display: 'block' }}>
+                👤 Le responsable pourra gérer les élèves et inscriptions de cette école
+              </small>
+            </div>
+
             <div style={{ display: 'flex', gap: 12 }}>
               <button type="submit" className={styles.primaryButton} disabled={loading}>
                 {loading ? 'Vérification...' : (editingEcole ? 'Modifier' : 'Ajouter')}
@@ -204,15 +304,43 @@ const GestionEcoles: React.FC = () => {
 
       <div className={styles.tableContainer}>
         <table className={styles.table}>
-          <thead><tr><th>Nom</th><th>Adresse</th><th>Téléphone</th><th>Actions</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Adresse</th>
+              <th>Téléphone</th>
+              <th>Responsable</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
           <tbody>
-            {loading ? <tr><td colSpan={4} style={{ textAlign: 'center' }}>Chargement...</td></tr>
-            : filteredEcoles.length === 0 ? <tr><td colSpan={4} style={{ textAlign: 'center' }}>Aucune école trouvée</td></tr>
-            : filteredEcoles.map((ecole) => (
+            {loading ? (
+              <tr><td colSpan={5} style={{ textAlign: 'center' }}>Chargement...</td></tr>
+            ) : filteredEcoles.length === 0 ? (
+              <tr><td colSpan={5} style={{ textAlign: 'center' }}>Aucune école trouvée</td></tr>
+            ) : (
+              filteredEcoles.map((ecole) => (
                 <tr key={ecole.id}>
                   <td><strong>{ecole.nom}</strong></td>
                   <td>{ecole.adresse || '-'}</td>
                   <td>{ecole.telephone || '-'}</td>
+                  <td>
+                    {ecole.responsable_nom ? (
+                      <div>
+                        <span className={styles.badgeInfo}>
+                          <User size={12} style={{ display: 'inline', marginRight: 4 }} />
+                          {ecole.responsable_nom}
+                        </span>
+                        <br />
+                        <small style={{ color: '#6c757d', fontSize: 11 }}>
+                          <Mail size={10} style={{ display: 'inline', marginRight: 2 }} />
+                          {ecole.responsable_email}
+                        </small>
+                      </div>
+                    ) : (
+                      <span style={{ color: '#fca311' }}>⚠️ Aucun responsable assigné</span>
+                    )}
+                   </td>
                   <td>
                     <button onClick={() => editEcole(ecole)} style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: 12, color: '#fca311' }}>
                       <Edit2 size={18} />
@@ -220,9 +348,10 @@ const GestionEcoles: React.FC = () => {
                     <button onClick={() => handleDelete(ecole.id, ecole.nom)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef233c' }}>
                       <Trash2 size={18} />
                     </button>
-                  </td>
-                </tr>
-              ))}
+                   </td>
+                 </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
