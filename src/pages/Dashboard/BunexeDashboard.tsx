@@ -3,8 +3,7 @@ import { Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { Home, FileText, ClipboardList, Award, Users, School, Plus, Edit2, Trash2, Calendar, Clock, MapPin } from 'lucide-react';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import styles from '../pages/styles/AdminDashboard.module.css';
-
+import styles from '../../styles/AdminDashboard.module.css';
 const BunexeDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
