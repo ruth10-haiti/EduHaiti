@@ -4,6 +4,7 @@ import { Home, FileText, ClipboardList, Award, Users, School, Plus, Edit2, Trash
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import styles from '../styles/AdminDashboard.module.css';
+
 const BunexeDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -14,7 +15,7 @@ const BunexeDashboard: React.FC = () => {
     }
   }, [user, navigate]);
 
-  return (
+  return (  
     <div className={styles.dashboardContainer}>
       <aside className={styles.sidebar}>
         <div className={styles.logo}>
@@ -59,7 +60,7 @@ const NavLinkBunexe: React.FC<{ to: string; icon: React.ReactNode; label: string
     <button
       onClick={() => navigate(to)}
       className={`${styles.navLink} ${isActive ? styles.active : ''}`}
-      style={{ width: '100%', textAlign: 'left', background: 'none' }}
+      style={{ width: '100%', textAlign: 'left', background: 'none', cursor: 'pointer' }}
     >
       {icon}
       <span>{label}</span>
@@ -121,7 +122,7 @@ const BunexeAccueil: React.FC = () => {
         <h3 style={{ marginBottom: 16 }}>📋 Actions rapides</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
           <Link to="/bunexe/examens" className={styles.primaryButton} style={{ textDecoration: 'none', textAlign: 'center' }}>📝 Gérer les examens</Link>
-          <Link to="/bunexe/inscriptions" className={styles.primaryButton} style={{ textDecoration: 'none', textAlign: 'center', background: '#fca311' }}>📋 Valider les inscriptions</Link>
+          <Link to="/bunexe/inscriptions" className={styles.primaryButton} style={{ textDecoration: 'none', textAlign: 'center', background: '#fca311' }}>📋 Gérer les inscriptions</Link>
           <Link to="/bunexe/resultats" className={styles.primaryButton} style={{ textDecoration: 'none', textAlign: 'center', background: '#06d6a0' }}>📊 Publier les résultats</Link>
         </div>
       </div>
@@ -139,7 +140,8 @@ const BunexeExamens: React.FC = () => {
     nom: '', description: '', annee_session: new Date().getFullYear(),
     debut_inscription: '', fin_inscription: '', date_examen: '',
     heure_examen: '09:00', duree: 120, coefficient: 1,
-    lieu: '', nombre_places: 0, frais_inscription: 0
+    lieu: '', nombre_places: 0, frais_inscription: 0,
+    type_examen: 'bac'
   });
 
   useEffect(() => { loadExamens(); }, []);
@@ -182,7 +184,8 @@ const BunexeExamens: React.FC = () => {
       nom: '', description: '', annee_session: new Date().getFullYear(),
       debut_inscription: '', fin_inscription: '', date_examen: '',
       heure_examen: '09:00', duree: 120, coefficient: 1,
-      lieu: '', nombre_places: 0, frais_inscription: 0
+      lieu: '', nombre_places: 0, frais_inscription: 0,
+      type_examen: 'bac'
     });
     setEditingExamen(null);
     setShowForm(false);
@@ -218,6 +221,19 @@ const BunexeExamens: React.FC = () => {
               <div className={styles.formGroup}><label className={styles.label}>Nom *</label><input type="text" className={styles.input} required value={formData.nom} onChange={e => setFormData({...formData, nom: e.target.value})} /></div>
               <div className={styles.formGroup}><label className={styles.label}>Année *</label><input type="number" className={styles.input} required value={formData.annee_session} onChange={e => setFormData({...formData, annee_session: parseInt(e.target.value)})} /></div>
             </div>
+            
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Type d'examen *</label>
+              <select className={styles.input} value={formData.type_examen} onChange={e => setFormData({...formData, type_examen: e.target.value})}>
+                <option value="9e AF">📘 9e AF (9e Année Fondamentale)</option>
+                <option value="NS4">📗 NS4 (Nouveau Secondaire 4)</option>
+                <option value="bac">🎓 Baccalauréat</option>
+              </select>
+              <small style={{ color: '#6c757d', fontSize: 12, marginTop: 4, display: 'block' }}>
+                Sélectionnez le type d'examen selon le système officiel haïtien
+              </small>
+            </div>
+
             <div className={styles.formGroup}><label className={styles.label}>Description</label><textarea className={styles.input} rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} /></div>
             <div style={{ background: '#f8f9fa', padding: 20, borderRadius: 12, marginBottom: 20 }}>
               <h4>📅 Dates</h4>
@@ -254,7 +270,11 @@ const BunexeExamens: React.FC = () => {
           return (
             <div key={examen.id} className={styles.formCard} style={{ padding: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <div><h3>{examen.nom}</h3><span className={`${styles.badge} ${status.className}`}>{status.label}</span></div>
+                <div>
+                  <h3>{examen.nom}</h3>
+                  <span className={`${styles.badge} ${status.className}`}>{status.label}</span>
+                  {examen.type_examen && <span className={styles.badgeInfo} style={{ marginLeft: 8 }}>{examen.type_examen}</span>}
+                </div>
                 <div><button onClick={() => editExamen(examen)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fca311' }}><Edit2 size={16} /></button>
                 <button onClick={() => handleDelete(examen.id, examen.nom)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef233c' }}><Trash2 size={16} /></button></div>
               </div>
@@ -271,26 +291,53 @@ const BunexeExamens: React.FC = () => {
   );
 };
 
-// ========== GESTION DES INSCRIPTIONS BUNEXE (explicite et pro) ==========
+// ========== GESTION DES INSCRIPTIONS BUNEXE ==========
 const BunexeInscriptions: React.FC = () => {
   const [inscriptions, setInscriptions] = useState<any[]>([]);
+  const [examens, setExamens] = useState<any[]>([]);
+  const [eleves, setEleves] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [selectedExamen, setSelectedExamen] = useState('');
+  const [selectedEleve, setSelectedEleve] = useState('');
   const [stats, setStats] = useState({ total: 0, validees: 0, enAttente: 0, rejetees: 0 });
 
   useEffect(() => {
-    loadInscriptions();
+    loadData();
   }, []);
 
-  const loadInscriptions = async () => {
+  const loadData = async () => {
+    setLoading(true);
     try {
-      const res = await api.get('/inscriptions-examens');
-      setInscriptions(res.data);
-      const total = res.data.length;
-      const enAttente = res.data.filter((i: any) => i.statut === 'en_attente').length;
-      const validees = res.data.filter((i: any) => i.statut === 'validee').length;
-      const rejetees = res.data.filter((i: any) => i.statut === 'rejetee').length;
+      const [inscriptionsRes, examensRes, elevesRes] = await Promise.all([
+        api.get('/inscriptions-examens'),
+        api.get('/examens'),
+        api.get('/eleves')
+      ]);
+      setInscriptions(inscriptionsRes.data);
+      setExamens(examensRes.data.filter((e: any) => new Date(e.date_examen) > new Date()));
+      setEleves(elevesRes.data);
+      
+      const total = inscriptionsRes.data.length;
+      const enAttente = inscriptionsRes.data.filter((i: any) => i.statut === 'en_attente').length;
+      const validees = inscriptionsRes.data.filter((i: any) => i.statut === 'validee').length;
+      const rejetees = inscriptionsRes.data.filter((i: any) => i.statut === 'rejetee').length;
       setStats({ total, validees, enAttente, rejetees });
     } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
+
+  const handleInscription = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api.post('/inscriptions-examens', { id_eleve: selectedEleve, id_examen: selectedExamen });
+      alert('✅ Inscription enregistrée avec succès');
+      setShowForm(false);
+      setSelectedEleve('');
+      setSelectedExamen('');
+      loadData();
+    } catch (err: any) { alert(err.response?.data?.message || '❌ Erreur'); }
     finally { setLoading(false); }
   };
 
@@ -298,7 +345,7 @@ const BunexeInscriptions: React.FC = () => {
     try {
       await api.patch(`/inscriptions-examens/${id}/valider`);
       alert('✅ Inscription validée');
-      loadInscriptions();
+      loadData();
     } catch (err) { alert('❌ Erreur'); }
   };
 
@@ -306,18 +353,57 @@ const BunexeInscriptions: React.FC = () => {
     try {
       await api.patch(`/inscriptions-examens/${id}/rejeter`);
       alert('❌ Inscription rejetée');
-      loadInscriptions();
+      loadData();
     } catch (err) { alert('❌ Erreur'); }
   };
 
-  const formatDate = (date: string) => new Date(date).toLocaleDateString('fr-FR');
+  const annulerInscription = async (id: number) => {
+    if (window.confirm('Annuler cette inscription ?')) {
+      try { await api.delete(`/inscriptions-examens/${id}`); loadData(); alert('✅ Inscription annulée'); }
+      catch (err) { alert('❌ Erreur'); }
+    }
+  };
+
+  const formatDate = (date: string) => date ? new Date(date).toLocaleDateString('fr-FR') : '-';
 
   if (loading) return <div style={{ textAlign: 'center', padding: 50 }}>Chargement...</div>;
 
   return (
     <div>
       <h1 className={styles.formTitle}>📋 Gestion des inscriptions aux examens</h1>
-      <p className={styles.formSubtitle}>Validez ou rejetez les demandes d'inscription des candidats</p>
+      <p className={styles.formSubtitle}>Inscrivez des élèves, validez ou rejetez les demandes d'inscription</p>
+
+      <div style={{ marginBottom: 24 }}>
+        {!showForm ? (
+          <button onClick={() => setShowForm(true)} className={styles.primaryButton}>
+            <Plus size={18} /> Nouvelle inscription
+          </button>
+        ) : (
+          <div className={styles.formCard}>
+            <h3>➕ Inscrire un élève à un examen</h3>
+            <form onSubmit={handleInscription}>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Élève</label>
+                <select className={styles.input} required value={selectedEleve} onChange={e => setSelectedEleve(e.target.value)}>
+                  <option value="">-- Choisir un élève --</option>
+                  {eleves.map(e => <option key={e.id} value={e.id}>{e.prenom} {e.nom} - {e.matricule_national || 'pas de matricule'}</option>)}
+                </select>
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Examen</label>
+                <select className={styles.input} required value={selectedExamen} onChange={e => setSelectedExamen(e.target.value)}>
+                  <option value="">-- Choisir un examen --</option>
+                  {examens.map(e => <option key={e.id} value={e.id}>{e.nom} ({e.type_examen}) - {formatDate(e.date_examen)}</option>)}
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button type="submit" className={styles.primaryButton} disabled={loading}>{loading ? 'Inscription...' : 'Inscrire'}</button>
+                <button type="button" onClick={() => setShowForm(false)} className={styles.secondaryButton}>Annuler</button>
+              </div>
+            </form>
+          </div>
+        )}
+      </div>
 
       <div className={styles.statsGrid}>
         <div className={styles.statCard}><div><h3>Total</h3><div className={styles.statNumber}>{stats.total}</div></div><div className={styles.statIcon}>📋</div></div>
@@ -328,7 +414,16 @@ const BunexeInscriptions: React.FC = () => {
 
       <div className={styles.tableContainer}>
         <table className={styles.table}>
-          <thead><tr><th>Élève</th><th>Matricule</th><th>Examen</th><th>Date inscription</th><th>Statut</th><th>Actions</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Élève</th>
+              <th>Matricule</th>
+              <th>Examen</th>
+              <th>Date inscription</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
           <tbody>
             {inscriptions.length === 0 ? (
               <tr><td colSpan={6} style={{ textAlign: 'center' }}>Aucune inscription</td></tr>
@@ -347,11 +442,13 @@ const BunexeInscriptions: React.FC = () => {
                   <td>
                     {ins.statut === 'en_attente' && (
                       <>
-                        <button onClick={() => validerInscription(ins.id)} className={styles.primaryButton} style={{ marginRight: 8, padding: '6px 12px' }}>✅ Valider</button>
-                        <button onClick={() => rejeterInscription(ins.id)} className={styles.secondaryButton} style={{ padding: '6px 12px', background: '#ef233c', color: 'white', border: 'none' }}>❌ Rejeter</button>
+                        <button onClick={() => validerInscription(ins.id)} className={styles.primaryButton} style={{ marginRight: 8, padding: '4px 10px' }}>✅ Valider</button>
+                        <button onClick={() => rejeterInscription(ins.id)} className={styles.secondaryButton} style={{ padding: '4px 10px', background: '#ef233c', color: 'white', border: 'none' }}>❌ Rejeter</button>
                       </>
                     )}
-                    {ins.statut !== 'en_attente' && <span>-</span>}
+                    {ins.statut !== 'en_attente' && (
+                      <button onClick={() => annulerInscription(ins.id)} className={styles.secondaryButton} style={{ padding: '4px 10px' }}>🗑️ Annuler</button>
+                    )}
                   </td>
                 </tr>
               ))
@@ -363,12 +460,14 @@ const BunexeInscriptions: React.FC = () => {
   );
 };
 
-// ========== GESTION DES RÉSULTATS BUNEXE (explicite et pro) ==========
+// ========== GESTION DES RÉSULTATS BUNEXE - SYSTÈME OFFICIEL HAÏTIEN ==========
 const BunexeResultats: React.FC = () => {
   const [examens, setExamens] = useState<any[]>([]);
   const [selectedExamen, setSelectedExamen] = useState<number | null>(null);
+  const [examenInfo, setExamenInfo] = useState<any>(null);
   const [resultats, setResultats] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [statsDecision, setStatsDecision] = useState({ admis: 0, echoue: 0, ajourne: 0, recale: 0 });
 
   useEffect(() => {
     const fetchExamens = async () => {
@@ -380,15 +479,28 @@ const BunexeResultats: React.FC = () => {
 
   const chargerResultats = async (examenId: number) => {
     setSelectedExamen(examenId);
+    const examen = examens.find(e => e.id === examenId);
+    setExamenInfo(examen);
     setLoading(true);
     try {
       const res = await api.get(`/resultats-examens/examen/${examenId}`);
       setResultats(res.data);
+      
+      // Calcul des statistiques
+      const admis = res.data.filter((r: any) => getDecisionHaitienne(r.note, examen?.type_examen || examen?.nom) === 'Admis(e)').length;
+      const echoue = res.data.filter((r: any) => getDecisionHaitienne(r.note, examen?.type_examen || examen?.nom) === 'Échoué(e)').length;
+      const ajourne = res.data.filter((r: any) => getDecisionHaitienne(r.note, examen?.type_examen || examen?.nom) === 'Ajourné(e)').length;
+      const recale = res.data.filter((r: any) => getDecisionHaitienne(r.note, examen?.type_examen || examen?.nom) === 'Recalé(e)').length;
+      setStatsDecision({ admis, echoue, ajourne, recale });
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
 
   const saisirNote = async (id: number, note: number) => {
+    if (note < 0 || note > 20) {
+      alert('❌ La note doit être comprise entre 0 et 20');
+      return;
+    }
     try {
       await api.put(`/resultats-examens/${id}`, { note });
       alert('✅ Note enregistrée');
@@ -398,68 +510,210 @@ const BunexeResultats: React.FC = () => {
 
   const publierResultats = async () => {
     if (!selectedExamen) return;
-    try {
-      await api.post(`/resultats-examens/${selectedExamen}/publier`);
-      alert('✅ Résultats publiés avec succès');
-      if (selectedExamen) chargerResultats(selectedExamen);
-    } catch (err) { alert('❌ Erreur'); }
+    if (window.confirm('⚠️ Êtes-vous sûr de vouloir publier tous les résultats ? Ils seront visibles par les secrétariats et les parents.')) {
+      try {
+        await api.post(`/resultats-examens/${selectedExamen}/publier`);
+        alert('✅ Résultats publiés avec succès');
+        if (selectedExamen) chargerResultats(selectedExamen);
+      } catch (err) { alert('❌ Erreur'); }
+    }
   };
 
-  const getMention = (note: number) => {
-    if (note >= 16) return '🏅 Très Bien';
-    if (note >= 14) return '🎖️ Bien';
-    if (note >= 12) return '📘 Assez Bien';
-    if (note >= 10) return '✅ Passable';
-    return '❌ Non admis';
+  // Système officiel haïtien des examens
+  const getDecisionHaitienne = (note: number, typeExamen: string): string => {
+    const noteValue = Number(note);
+    
+    // Baccalauréat
+    if (typeExamen === 'bac' || typeExamen === 'Baccalauréat') {
+      if (noteValue >= 10 && noteValue < 13) return 'Admis(e)';
+      if (noteValue >= 13 && noteValue < 16) return 'Admis(e)';
+      if (noteValue >= 16) return 'Admis(e)';
+      if (noteValue >= 8 && noteValue < 10) return 'Ajourné(e) - Peut repasser';
+      return 'Recalé(e)';
+    }
+    
+    // 9e AF (9e Année Fondamentale)
+    if (typeExamen === '9e AF') {
+      if (noteValue >= 10 && noteValue < 13) return 'Admis(e)';
+      if (noteValue >= 13 && noteValue < 16) return 'Admis(e) - Mention Bien';
+      if (noteValue >= 16) return 'Admis(e) - Mention Très Bien';
+      if (noteValue >= 8 && noteValue < 10) return 'Ajourné(e)';
+      return 'Échoué(e)';
+    }
+    
+    // NS4 (Nouveau Secondaire 4)
+    if (typeExamen === 'NS4') {
+      if (noteValue >= 10 && noteValue < 13) return 'Admis(e)';
+      if (noteValue >= 13 && noteValue < 16) return 'Admis(e) - Bien';
+      if (noteValue >= 16) return 'Admis(e) - Très Bien';
+      if (noteValue >= 7 && noteValue < 10) return 'Ajourné(e)';
+      return 'Échoué(e)';
+    }
+    
+    // Par défaut
+    if (noteValue >= 10) return 'Admis(e)';
+    if (noteValue >= 7 && noteValue < 10) return 'Ajourné(e)';
+    return 'Échoué(e)';
+  };
+
+  const getMentionHaitienne = (note: number, typeExamen: string) => {
+    const noteValue = Number(note);
+    
+    // Baccalauréat
+    if (typeExamen === 'bac' || typeExamen === 'Baccalauréat') {
+      if (noteValue >= 16) return { text: '🏅 Très Bien', class: styles.badgeSuccess };
+      if (noteValue >= 13) return { text: '🎖️ Bien', class: styles.badgeSuccess };
+      if (noteValue >= 10) return { text: '✅ Passable', class: styles.badgeWarning };
+      if (noteValue >= 8) return { text: '⏳ Ajourné', class: styles.badgeWarning };
+      return { text: '❌ Recalé', class: styles.badgeDanger };
+    }
+    
+    // 9e AF
+    if (typeExamen === '9e AF') {
+      if (noteValue >= 16) return { text: '🏅 Très Bien', class: styles.badgeSuccess };
+      if (noteValue >= 13) return { text: '🎖️ Bien', class: styles.badgeSuccess };
+      if (noteValue >= 10) return { text: '📘 Assez Bien', class: styles.badgeInfo };
+      if (noteValue >= 8) return { text: '⚠️ Ajourné', class: styles.badgeWarning };
+      return { text: '❌ Échoué', class: styles.badgeDanger };
+    }
+    
+    // NS4
+    if (typeExamen === 'NS4') {
+      if (noteValue >= 16) return { text: '🏅 Très Bien', class: styles.badgeSuccess };
+      if (noteValue >= 13) return { text: '🎖️ Bien', class: styles.badgeSuccess };
+      if (noteValue >= 10) return { text: '📘 Assez Bien', class: styles.badgeInfo };
+      if (noteValue >= 7) return { text: '⚠️ Ajourné', class: styles.badgeWarning };
+      return { text: '❌ Échoué', class: styles.badgeDanger };
+    }
+    
+    // Par défaut
+    if (noteValue >= 16) return { text: '🏅 Excellent', class: styles.badgeSuccess };
+    if (noteValue >= 14) return { text: '🎖️ Très Bien', class: styles.badgeSuccess };
+    if (noteValue >= 12) return { text: '📘 Bien', class: styles.badgeInfo };
+    if (noteValue >= 10) return { text: '✅ Passable', class: styles.badgeWarning };
+    if (noteValue >= 7) return { text: '⚠️ Ajourné', class: styles.badgeWarning };
+    return { text: '❌ Échoué', class: styles.badgeDanger };
+  };
+
+  const getBadgeColor = (decision: string) => {
+    if (decision.includes('Admis')) return styles.badgeSuccess;
+    if (decision.includes('Ajourné')) return styles.badgeWarning;
+    if (decision.includes('Échoué')) return styles.badgeDanger;
+    if (decision.includes('Recalé')) return styles.badgeDanger;
+    return styles.badgeInfo;
   };
 
   return (
     <div>
-      <h1 className={styles.formTitle}>📊 Gestion des résultats</h1>
-      <p className={styles.formSubtitle}>Saisissez et publiez les résultats des examens</p>
+      <h1 className={styles.formTitle}>📊 Gestion des résultats - BUNEXE</h1>
+      <p className={styles.formSubtitle}>Saisie des notes selon le système officiel haïtien (9e AF, NS4, Baccalauréat)</p>
 
       <div className={styles.formCard} style={{ marginBottom: 24 }}>
         <div className={styles.formGroup}>
           <label className={styles.label}>Sélectionner un examen</label>
           <select className={styles.input} onChange={(e) => chargerResultats(Number(e.target.value))}>
             <option value="">-- Choisir un examen --</option>
-            {examens.map((ex: any) => <option key={ex.id} value={ex.id}>{ex.nom} - {ex.annee_session}</option>)}
+            {examens.map((ex: any) => (
+              <option key={ex.id} value={ex.id}>
+                {ex.nom} - {ex.annee_session} ({ex.type_examen || 'Standard'})
+              </option>
+            ))}
           </select>
         </div>
       </div>
 
       {selectedExamen && (
         <>
+          {/* Statistiques des décisions */}
+          <div className={styles.statsGrid}>
+            <div className={styles.statCard}><div><h3>🎓 Admis(es)</h3><div className={styles.statNumber} style={{ color: '#06d6a0' }}>{statsDecision.admis}</div></div></div>
+            <div className={styles.statCard}><div><h3>⚠️ Ajourné(es)</h3><div className={styles.statNumber} style={{ color: '#fca311' }}>{statsDecision.ajourne}</div></div></div>
+            <div className={styles.statCard}><div><h3>❌ Échoué(es)</h3><div className={styles.statNumber} style={{ color: '#ef233c' }}>{statsDecision.echoue}</div></div></div>
+            <div className={styles.statCard}><div><h3>📋 Recalé(es)</h3><div className={styles.statNumber} style={{ color: '#dc3545' }}>{statsDecision.recale}</div></div></div>
+          </div>
+
+          <div className={styles.formCard} style={{ marginBottom: 24, background: '#f0f4ff' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div>
+                <h3>📌 {examenInfo?.nom} - Session {examenInfo?.annee_session}</h3>
+                <p style={{ marginTop: 8, fontSize: 14 }}>
+                  📊 Type: {examenInfo?.type_examen === 'bac' ? 'Baccalauréat' : 
+                    examenInfo?.type_examen === '9e AF' ? '9e Année Fondamentale' : 
+                    examenInfo?.type_examen === 'NS4' ? 'Nouveau Secondaire 4' : 'Standard'}
+                </p>
+                <p style={{ fontSize: 13, color: '#6c757d' }}>
+                  📌 Barème: Seuil d'admission à 10/20 | Mention Très Bien à partir de 16/20
+                </p>
+              </div>
+              <div>
+                <span className={styles.badgeInfo}>📝 Total candidats: {resultats.length}</span>
+              </div>
+            </div>
+          </div>
+
           <div className={styles.tableContainer}>
             <table className={styles.table}>
               <thead>
-                <tr><th>Matricule</th><th>Élève</th><th>École</th><th>Note /20</th><th>Mention</th><th>Statut</th><th>Action</th></tr>
+                <tr>
+                  <th>Matricule</th>
+                  <th>Élève</th>
+                  <th>École</th>
+                  <th>Note /20</th>
+                  <th>Mention</th>
+                  <th>Décision</th>
+                  <th>Statut publication</th>
+                  <th>Action</th>
+                </tr>
               </thead>
               <tbody>
-                {loading ? <tr><td colSpan={7} style={{ textAlign: 'center' }}>Chargement...</td></tr> :
-                  resultats.map((res: any) => (
-                    <tr key={res.id}>
-                      <td><code>{res.matricule_national || '-'}</code></td>
-                      <td><strong>{res.eleve_prenom} {res.eleve_nom}</strong></td>
-                      <td>{res.ecole_nom || '-'}</td>
-                      <td>
-                        {res.publie ? (
-                          <span style={{ fontWeight: 'bold', fontSize: 18 }}>{res.note}/20</span>
-                        ) : (
-                          <input type="number" step="0.5" min="0" max="20" defaultValue={res.note} className={styles.input} style={{ width: 80 }}
-                            onBlur={(e) => saisirNote(res.id, parseFloat(e.target.value))} />
-                        )}
-                      </td>
-                      <td><span className={`${styles.badge} ${res.note >= 10 ? styles.badgeSuccess : styles.badgeDanger}`}>{getMention(res.note)}</span></td>
-                      <td>{res.publie ? <span className={styles.badgeSuccess}>✅ Publié</span> : <span className={styles.badgeWarning}>📝 En cours</span>}</td>
-                      <td>{!res.publie && <button onClick={() => saisirNote(res.id, res.note)} className={styles.primaryButton} style={{ padding: '4px 12px' }}>💾 Sauvegarder</button>}</td>
-                    </tr>
-                  ))}
+                {loading ? (
+                  <tr><td colSpan={8} style={{ textAlign: 'center' }}>Chargement...</td></tr>
+                ) : resultats.length === 0 ? (
+                  <tr><td colSpan={8} style={{ textAlign: 'center' }}>Aucun résultat trouvé pour cet examen</td></tr>
+                ) : (
+                  resultats.map((res: any) => {
+                    const mention = getMentionHaitienne(res.note, examenInfo?.type_examen || examenInfo?.nom);
+                    const decision = getDecisionHaitienne(res.note, examenInfo?.type_examen || examenInfo?.nom);
+                    return (
+                      <tr key={res.id}>
+                        <td><code>{res.matricule_national || '-'}</code></td>
+                        <td><strong>{res.eleve_prenom} {res.eleve_nom}</strong></td>
+                        <td>{res.ecole_nom || '-'}</td>
+                        <td>
+                          {res.publie ? (
+                            <span style={{ fontWeight: 'bold', fontSize: 18 }}>{res.note}/20</span>
+                          ) : (
+                            <input 
+                              type="number" 
+                              step="0.5" 
+                              min="0" 
+                              max="20" 
+                              defaultValue={res.note || 0} 
+                              className={styles.input} 
+                              style={{ width: 80 }}
+                              onBlur={(e) => saisirNote(res.id, parseFloat(e.target.value))} 
+                            />
+                          )}
+                        </td>
+                        <td><span className={mention.class}>{mention.text}</span></td>
+                        <td><span className={getBadgeColor(decision)}>{decision}</span></td>
+                        <td>{res.publie ? <span className={styles.badgeSuccess}>✅ Publié</span> : <span className={styles.badgeWarning}>📝 En cours</span>}</td>
+                        <td>
+                          {!res.publie && (
+                            <button onClick={() => saisirNote(res.id, res.note)} className={styles.primaryButton} style={{ padding: '4px 12px' }}>
+                              💾 Sauvegarder
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
 
-          <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end', gap: 16 }}>
             <button onClick={publierResultats} className={styles.primaryButton} style={{ background: '#06d6a0' }}>
               <Award size={18} /> Publier tous les résultats
             </button>
@@ -470,7 +724,7 @@ const BunexeResultats: React.FC = () => {
   );
 };
 
-// ========== LISTE DES ÉLÈVES AVEC ÉCOLES ET MATRICULES ==========
+// ========== LISTE DES ÉLÈVES ==========
 const BunexeEleves: React.FC = () => {
   const [eleves, setEleves] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -524,7 +778,7 @@ const BunexeEleves: React.FC = () => {
   );
 };
 
-// ========== LISTE DES ÉCOLES AVEC RESPONSABLES (SECRÉTARIAT) ==========
+// ========== LISTE DES ÉCOLES ==========
 const BunexeEcoles: React.FC = () => {
   const [ecoles, setEcoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -533,7 +787,6 @@ const BunexeEcoles: React.FC = () => {
     const loadEcoles = async () => {
       try {
         const res = await api.get('/admin/ecoles');
-        // Récupérer les responsables pour chaque école
         const ecolesAvecResponsables = await Promise.all(
           res.data.map(async (ecole: any) => {
             try {
