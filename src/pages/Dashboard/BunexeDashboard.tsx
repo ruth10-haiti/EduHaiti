@@ -1,205 +1,400 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Link, useNavigate } from 'react-router-dom';
-import Menu from '../../components/Menu';
-import Examens from '../../components/Examens';
-import { useAuth } from '../../contexts/AuthContext';
+import { Home, FileText, ClipboardList, Award, Users, School, Plus, Edit2, Trash2, Calendar, Clock, MapPin } from 'lucide-react';
 import api from '../../services/api';
-import styles from '../styles/Dashboard.module.css';
+import { useAuth } from '../../contexts/AuthContext';
+import styles from '../pages/styles/AdminDashboard.module.css';
 
 const BunexeDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    totalExamens: 0,
-    totalInscriptions: 0,
-    totalResultats: 0
-  });
 
   useEffect(() => {
-    // Vérifier que l'utilisateur a bien le rôle bunexe
     if (user && user.role !== 'bunexe') {
       navigate('/dashboard');
-      return;
-    }
-
-    // Charger les statistiques
-    const fetchStats = async () => {
-      try {
-        const [examensRes, inscriptionsRes, resultatsRes] = await Promise.all([
-          api.get('/examens/stats'),
-          api.get('/inscriptions-examens/stats'),
-          api.get('/resultats-examens/stats')
-        ]);
-        setStats({
-          totalExamens: examensRes.data.total || 0,
-          totalInscriptions: inscriptionsRes.data.total || 0,
-          totalResultats: resultatsRes.data.total || 0
-        });
-      } catch (error) {
-        console.error('Erreur chargement stats:', error);
-      }
-    };
-
-    if (user) {
-      fetchStats();
     }
   }, [user, navigate]);
 
   return (
     <div className={styles.dashboardContainer}>
-      <Menu />
-      <div className={styles.content}>
+      <aside className={styles.sidebar}>
+        <div className={styles.logo}>
+          <h2>EduHaiti</h2>
+          <p>BUNEXE</p>
+        </div>
+        <nav className={styles.nav}>
+          <NavLinkBunexe to="/bunexe" icon={<Home size={20} />} label="Accueil" />
+          <NavLinkBunexe to="/bunexe/examens" icon={<FileText size={20} />} label="Examens" />
+          <NavLinkBunexe to="/bunexe/inscriptions" icon={<ClipboardList size={20} />} label="Inscriptions" />
+          <NavLinkBunexe to="/bunexe/resultats" icon={<Award size={20} />} label="Résultats" />
+          <NavLinkBunexe to="/bunexe/eleves" icon={<Users size={20} />} label="Élèves" />
+          <NavLinkBunexe to="/bunexe/ecoles" icon={<School size={20} />} label="Écoles" />
+        </nav>
+        <div className={styles.logoutSection}>
+          <button onClick={() => { localStorage.clear(); navigate('/connexion'); }} className={styles.logoutButton}>
+            <span>🚪</span>
+            <span>Déconnexion</span>
+          </button>
+        </div>
+      </aside>
+      <main className={styles.content}>
         <Routes>
-          <Route path="/" element={<BunexeHome stats={stats} />} />
-          <Route path="/examens/*" element={<Examens />} />
-          <Route path="/inscriptions/*" element={<InscriptionsBunexe />} />
-          <Route path="/resultats/*" element={<ResultatsBunexe />} />
+          <Route path="/" element={<BunexeAccueil />} />
+          <Route path="/examens/*" element={<BunexeExamens />} />
+          <Route path="/inscriptions/*" element={<BunexeInscriptions />} />
+          <Route path="/resultats/*" element={<BunexeResultats />} />
+          <Route path="/eleves/*" element={<BunexeEleves />} />
+          <Route path="/ecoles/*" element={<BunexeEcoles />} />
         </Routes>
+      </main>
+    </div>
+  );
+};
+
+const NavLinkBunexe: React.FC<{ to: string; icon: React.ReactNode; label: string }> = ({ to, icon, label }) => {
+  const navigate = useNavigate();
+  const location = window.location.pathname;
+  const isActive = location === to;
+  
+  return (
+    <button
+      onClick={() => navigate(to)}
+      className={`${styles.navLink} ${isActive ? styles.active : ''}`}
+      style={{ width: '100%', textAlign: 'left', background: 'none' }}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+};
+
+// ========== PAGE ACCUEIL BUNEXE ==========
+const BunexeAccueil: React.FC = () => {
+  const [stats, setStats] = useState({ examens: 0, inscriptions: 0, resultats: 0, eleves: 0 });
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const [examens, inscriptions, resultats, eleves] = await Promise.all([
+          api.get('/examens'),
+          api.get('/inscriptions-examens'),
+          api.get('/resultats-examens'),
+          api.get('/eleves')
+        ]);
+        setStats({
+          examens: examens.data.length,
+          inscriptions: inscriptions.data.length,
+          resultats: resultats.data.length,
+          eleves: eleves.data.length
+        });
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    loadStats();
+  }, []);
+
+  const cartes = [
+    { title: 'Examens', value: stats.examens, icon: <FileText size={24} />, color: '#4361ee', path: '/bunexe/examens' },
+    { title: 'Inscriptions', value: stats.inscriptions, icon: <ClipboardList size={24} />, color: '#fca311', path: '/bunexe/inscriptions' },
+    { title: 'Résultats', value: stats.resultats, icon: <Award size={24} />, color: '#06d6a0', path: '/bunexe/resultats' },
+    { title: 'Élèves', value: stats.eleves, icon: <Users size={24} />, color: '#7209b7', path: '/bunexe/eleves' }
+  ];
+
+  return (
+    <div>
+      <h1 className={styles.formTitle}>📊 Bureau National des Examens (BUNEXE)</h1>
+      <p className={styles.formSubtitle}>Gérez les examens nationaux, les inscriptions et les résultats</p>
+      
+      <div className={styles.statsGrid}>
+        {cartes.map((carte, idx) => (
+          <div key={idx} className={styles.statCard} onClick={() => window.location.href = carte.path} style={{ cursor: 'pointer' }}>
+            <div className={styles.statInfo}>
+              <h3>{carte.title}</h3>
+              <div className={styles.statNumber}>{carte.value}</div>
+            </div>
+            <div className={styles.statIcon} style={{ background: `${carte.color}20`, color: carte.color }}>{carte.icon}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className={styles.formCard}>
+        <h3 style={{ marginBottom: 16 }}>📋 Actions rapides</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
+          <Link to="/bunexe/examens" className={styles.primaryButton} style={{ textDecoration: 'none', textAlign: 'center' }}>📝 Gérer les examens</Link>
+          <Link to="/bunexe/inscriptions" className={styles.primaryButton} style={{ textDecoration: 'none', textAlign: 'center', background: '#fca311' }}>📋 Valider les inscriptions</Link>
+          <Link to="/bunexe/resultats" className={styles.primaryButton} style={{ textDecoration: 'none', textAlign: 'center', background: '#06d6a0' }}>📊 Publier les résultats</Link>
+        </div>
       </div>
     </div>
   );
 };
 
-// Page d'accueil BUNEXE
-const BunexeHome: React.FC<{ stats: any }> = ({ stats }) => (
-  <div className={styles.welcome}>
-    <h1>📚 Bureau National des Examens (BUNEXE)</h1>
-    <p>Gérez les examens nationaux, les inscriptions et les résultats</p>
-    
-    {/* Cartes statistiques */}
-    <div className={styles.statsGrid}>
-      <div className={styles.statCard}>
-        <h3>{stats.totalExamens}</h3>
-        <p>Examens créés</p>
+// ========== GESTION DES EXAMENS BUNEXE ==========
+const BunexeExamens: React.FC = () => {
+  const [examens, setExamens] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingExamen, setEditingExamen] = useState<any>(null);
+  const [formData, setFormData] = useState({
+    nom: '', description: '', annee_session: new Date().getFullYear(),
+    debut_inscription: '', fin_inscription: '', date_examen: '',
+    heure_examen: '09:00', duree: 120, coefficient: 1,
+    lieu: '', nombre_places: 0, frais_inscription: 0
+  });
+
+  useEffect(() => { loadExamens(); }, []);
+
+  const loadExamens = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/examens');
+      setExamens(res.data);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      if (editingExamen) {
+        await api.put(`/examens/${editingExamen.id}`, formData);
+        alert('✅ Examen modifié');
+      } else {
+        await api.post('/examens', formData);
+        alert('✅ Examen créé');
+      }
+      resetForm();
+      loadExamens();
+    } catch (err: any) { alert(err.response?.data?.error || '❌ Erreur'); }
+    finally { setLoading(false); }
+  };
+
+  const handleDelete = async (id: number, nom: string) => {
+    if (window.confirm(`⚠️ Supprimer "${nom}" ?`)) {
+      try { await api.delete(`/examens/${id}`); loadExamens(); alert('✅ Supprimé'); }
+      catch (err) { alert('❌ Erreur'); }
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      nom: '', description: '', annee_session: new Date().getFullYear(),
+      debut_inscription: '', fin_inscription: '', date_examen: '',
+      heure_examen: '09:00', duree: 120, coefficient: 1,
+      lieu: '', nombre_places: 0, frais_inscription: 0
+    });
+    setEditingExamen(null);
+    setShowForm(false);
+  };
+
+  const editExamen = (examen: any) => { setEditingExamen(examen); setFormData(examen); setShowForm(true); };
+
+  const formatDate = (date: string) => date ? new Date(date).toLocaleDateString('fr-FR') : 'Non définie';
+
+  const getStatus = (examen: any) => {
+    const now = new Date();
+    const debut = new Date(examen.debut_inscription);
+    const fin = new Date(examen.fin_inscription);
+    const dateExamen = new Date(examen.date_examen);
+    if (now > dateExamen) return { label: 'Terminé', className: styles.badgeWarning };
+    if (now < debut) return { label: 'À venir', className: styles.badgeInfo };
+    if (now > fin) return { label: 'Inscriptions fermées', className: styles.badgeDanger };
+    return { label: 'Inscriptions ouvertes', className: styles.badgeSuccess };
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div><h1 className={styles.formTitle}>📝 Gestion des examens</h1><p className={styles.formSubtitle}>Organisez les examens nationaux</p></div>
+        {!showForm && <button onClick={() => setShowForm(true)} className={styles.primaryButton}><Plus size={18} /> Nouvel examen</button>}
       </div>
-      <div className={styles.statCard}>
-        <h3>{stats.totalInscriptions}</h3>
-        <p>Inscriptions</p>
-      </div>
-      <div className={styles.statCard}>
-        <h3>{stats.totalResultats}</h3>
-        <p>Résultats saisis</p>
+
+      {showForm && (
+        <div className={styles.formCard} style={{ marginBottom: 32 }}>
+          <h3>{editingExamen ? '✏️ Modifier' : '➕ Créer'} un examen</h3>
+          <form onSubmit={handleSubmit}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              <div className={styles.formGroup}><label className={styles.label}>Nom *</label><input type="text" className={styles.input} required value={formData.nom} onChange={e => setFormData({...formData, nom: e.target.value})} /></div>
+              <div className={styles.formGroup}><label className={styles.label}>Année *</label><input type="number" className={styles.input} required value={formData.annee_session} onChange={e => setFormData({...formData, annee_session: parseInt(e.target.value)})} /></div>
+            </div>
+            <div className={styles.formGroup}><label className={styles.label}>Description</label><textarea className={styles.input} rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} /></div>
+            <div style={{ background: '#f8f9fa', padding: 20, borderRadius: 12, marginBottom: 20 }}>
+              <h4>📅 Dates</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <div><label className={styles.label}>Date examen</label><input type="date" className={styles.input} value={formData.date_examen} onChange={e => setFormData({...formData, date_examen: e.target.value})} /></div>
+                <div><label className={styles.label}>Heure</label><input type="time" className={styles.input} value={formData.heure_examen} onChange={e => setFormData({...formData, heure_examen: e.target.value})} /></div>
+                <div><label className={styles.label}>Durée (min)</label><input type="number" className={styles.input} value={formData.duree} onChange={e => setFormData({...formData, duree: parseInt(e.target.value)})} /></div>
+                <div><label className={styles.label}>Lieu</label><input type="text" className={styles.input} value={formData.lieu} onChange={e => setFormData({...formData, lieu: e.target.value})} /></div>
+              </div>
+            </div>
+            <div style={{ background: '#fff3e0', padding: 20, borderRadius: 12, marginBottom: 20 }}>
+              <h4>📋 Inscriptions</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <div><label className={styles.label}>Début</label><input type="date" className={styles.input} value={formData.debut_inscription} onChange={e => setFormData({...formData, debut_inscription: e.target.value})} /></div>
+                <div><label className={styles.label}>Fin</label><input type="date" className={styles.input} value={formData.fin_inscription} onChange={e => setFormData({...formData, fin_inscription: e.target.value})} /></div>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20 }}>
+              <div><label className={styles.label}>Coefficient</label><input type="number" step="0.5" className={styles.input} value={formData.coefficient} onChange={e => setFormData({...formData, coefficient: parseFloat(e.target.value)})} /></div>
+              <div><label className={styles.label}>Places</label><input type="number" className={styles.input} value={formData.nombre_places} onChange={e => setFormData({...formData, nombre_places: parseInt(e.target.value)})} /></div>
+              <div><label className={styles.label}>Frais (Gdes)</label><input type="number" className={styles.input} value={formData.frais_inscription} onChange={e => setFormData({...formData, frais_inscription: parseInt(e.target.value)})} /></div>
+            </div>
+            <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+              <button type="submit" className={styles.primaryButton}>{loading ? 'Enregistrement...' : (editingExamen ? 'Modifier' : 'Créer')}</button>
+              <button type="button" onClick={resetForm} className={styles.secondaryButton}>Annuler</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 20 }}>
+        {examens.map(examen => {
+          const status = getStatus(examen);
+          return (
+            <div key={examen.id} className={styles.formCard} style={{ padding: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div><h3>{examen.nom}</h3><span className={`${styles.badge} ${status.className}`}>{status.label}</span></div>
+                <div><button onClick={() => editExamen(examen)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fca311' }}><Edit2 size={16} /></button>
+                <button onClick={() => handleDelete(examen.id, examen.nom)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef233c' }}><Trash2 size={16} /></button></div>
+              </div>
+              <div style={{ borderTop: '1px solid #e9ecef', marginTop: 12, paddingTop: 12 }}>
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}><span><Calendar size={14} /> {examen.annee_session}</span><span><Award size={14} /> Coef {examen.coefficient}</span></div>
+                {examen.date_examen && <div><Clock size={14} /> {formatDate(examen.date_examen)} à {examen.heure_examen}</div>}
+                {examen.lieu && <div><MapPin size={14} /> {examen.lieu}</div>}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
+  );
+};
 
-    {/* Cartes de navigation */}
-    <div className={styles.cardGrid}>
-      <Link to="/bunexe/examens" className={styles.card}>
-        <div className={styles.cardIcon}>📝</div>
-        <h3>Gérer les examens</h3>
-        <p>Créer, modifier et planifier les examens nationaux</p>
-      </Link>
-      
-      <Link to="/bunexe/inscriptions" className={styles.card}>
-        <div className={styles.cardIcon}>📋</div>
-        <h3>Gérer les inscriptions</h3>
-        <p>Valider les inscriptions aux examens</p>
-      </Link>
-      
-      <Link to="/bunexe/resultats" className={styles.card}>
-        <div className={styles.cardIcon}>📊</div>
-        <h3>Publier les résultats</h3>
-        <p>Saisir et publier les résultats des examens</p>
-      </Link>
-    </div>
-  </div>
-);
-
-// Page de gestion des inscriptions BUNEXE
-const InscriptionsBunexe: React.FC = () => {
-  const [inscriptions, setInscriptions] = useState([]);
+// ========== GESTION DES INSCRIPTIONS BUNEXE (explicite et pro) ==========
+const BunexeInscriptions: React.FC = () => {
+  const [inscriptions, setInscriptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ total: 0, validees: 0, enAttente: 0, rejetees: 0 });
 
   useEffect(() => {
-    const fetchInscriptions = async () => {
-      try {
-        const response = await api.get('/inscriptions-examens');
-        setInscriptions(response.data);
-      } catch (error) {
-        console.error('Erreur chargement inscriptions:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchInscriptions();
+    loadInscriptions();
   }, []);
+
+  const loadInscriptions = async () => {
+    try {
+      const res = await api.get('/inscriptions-examens');
+      setInscriptions(res.data);
+      const total = res.data.length;
+      const enAttente = res.data.filter((i: any) => i.statut === 'en_attente').length;
+      const validees = res.data.filter((i: any) => i.statut === 'validee').length;
+      const rejetees = res.data.filter((i: any) => i.statut === 'rejetee').length;
+      setStats({ total, validees, enAttente, rejetees });
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
 
   const validerInscription = async (id: number) => {
     try {
       await api.patch(`/inscriptions-examens/${id}/valider`);
-      setInscriptions(inscriptions.filter((i: any) => i.id !== id));
-      alert('✅ Inscription validée avec succès');
-    } catch (error) {
-      console.error('Erreur validation:', error);
-      alert('❌ Erreur lors de la validation');
-    }
+      alert('✅ Inscription validée');
+      loadInscriptions();
+    } catch (err) { alert('❌ Erreur'); }
   };
 
-  if (loading) return <div>Chargement...</div>;
+  const rejeterInscription = async (id: number) => {
+    try {
+      await api.patch(`/inscriptions-examens/${id}/rejeter`);
+      alert('❌ Inscription rejetée');
+      loadInscriptions();
+    } catch (err) { alert('❌ Erreur'); }
+  };
+
+  const formatDate = (date: string) => new Date(date).toLocaleDateString('fr-FR');
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 50 }}>Chargement...</div>;
 
   return (
     <div>
-      <h2>📋 Inscriptions aux examens</h2>
-      <p>Validez les inscriptions des candidats</p>
-      
-      {inscriptions.length === 0 ? (
-        <p>Aucune inscription en attente</p>
-      ) : (
+      <h1 className={styles.formTitle}>📋 Gestion des inscriptions aux examens</h1>
+      <p className={styles.formSubtitle}>Validez ou rejetez les demandes d'inscription des candidats</p>
+
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard}><div><h3>Total</h3><div className={styles.statNumber}>{stats.total}</div></div><div className={styles.statIcon}>📋</div></div>
+        <div className={styles.statCard}><div><h3>En attente</h3><div className={styles.statNumber} style={{ color: '#fca311' }}>{stats.enAttente}</div></div><div className={styles.statIcon}>⏳</div></div>
+        <div className={styles.statCard}><div><h3>Validées</h3><div className={styles.statNumber} style={{ color: '#06d6a0' }}>{stats.validees}</div></div><div className={styles.statIcon}>✅</div></div>
+        <div className={styles.statCard}><div><h3>Rejetées</h3><div className={styles.statNumber} style={{ color: '#ef233c' }}>{stats.rejetees}</div></div><div className={styles.statIcon}>❌</div></div>
+      </div>
+
+      <div className={styles.tableContainer}>
         <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Élève</th>
-              <th>Examen</th>
-              <th>Date</th>
-              <th>Action</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Élève</th><th>Matricule</th><th>Examen</th><th>Date inscription</th><th>Statut</th><th>Actions</th></tr></thead>
           <tbody>
-            {inscriptions.map((ins: any) => (
-              <tr key={ins.id}>
-                <td>{ins.eleve_nom}</td>
-                <td>{ins.examen_nom}</td>
-                <td>{new Date(ins.date_inscription).toLocaleDateString()}</td>
-                <td>
-                  <button onClick={() => validerInscription(ins.id)} className={styles.btnValider}>
-                    Valider
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {inscriptions.length === 0 ? (
+              <tr><td colSpan={6} style={{ textAlign: 'center' }}>Aucune inscription</td></tr>
+            ) : (
+              inscriptions.map((ins: any) => (
+                <tr key={ins.id}>
+                  <td><strong>{ins.eleve_prenom} {ins.eleve_nom}</strong></td>
+                  <td><code>{ins.matricule_national || '-'}</code></td>
+                  <td>{ins.examen_nom}</td>
+                  <td>{formatDate(ins.date_inscription)}</td>
+                  <td>
+                    <span className={`${styles.badge} ${ins.statut === 'validee' ? styles.badgeSuccess : ins.statut === 'rejetee' ? styles.badgeDanger : styles.badgeWarning}`}>
+                      {ins.statut === 'validee' ? '✅ Validée' : ins.statut === 'rejetee' ? '❌ Rejetée' : '⏳ En attente'}
+                    </span>
+                  </td>
+                  <td>
+                    {ins.statut === 'en_attente' && (
+                      <>
+                        <button onClick={() => validerInscription(ins.id)} className={styles.primaryButton} style={{ marginRight: 8, padding: '6px 12px' }}>✅ Valider</button>
+                        <button onClick={() => rejeterInscription(ins.id)} className={styles.secondaryButton} style={{ padding: '6px 12px', background: '#ef233c', color: 'white', border: 'none' }}>❌ Rejeter</button>
+                      </>
+                    )}
+                    {ins.statut !== 'en_attente' && <span>-</span>}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
-      )}
+      </div>
     </div>
   );
 };
 
-// Page de gestion des résultats BUNEXE
-const ResultatsBunexe: React.FC = () => {
-  const [examens, setExamens] = useState([]);
+// ========== GESTION DES RÉSULTATS BUNEXE (explicite et pro) ==========
+const BunexeResultats: React.FC = () => {
+  const [examens, setExamens] = useState<any[]>([]);
   const [selectedExamen, setSelectedExamen] = useState<number | null>(null);
-  const [resultats, setResultats] = useState([]);
+  const [resultats, setResultats] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchExamens = async () => {
-      try {
-        const response = await api.get('/examens');
-        setExamens(response.data);
-      } catch (error) {
-        console.error('Erreur chargement examens:', error);
-      }
+      try { const res = await api.get('/examens'); setExamens(res.data); }
+      catch (err) { console.error(err); }
     };
     fetchExamens();
   }, []);
 
   const chargerResultats = async (examenId: number) => {
     setSelectedExamen(examenId);
+    setLoading(true);
     try {
-      const response = await api.get(`/resultats-examens/examen/${examenId}`);
-      setResultats(response.data);
-    } catch (error) {
-      console.error('Erreur chargement résultats:', error);
-    }
+      const res = await api.get(`/resultats-examens/examen/${examenId}`);
+      setResultats(res.data);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
+
+  const saisirNote = async (id: number, note: number) => {
+    try {
+      await api.put(`/resultats-examens/${id}`, { note });
+      alert('✅ Note enregistrée');
+      if (selectedExamen) chargerResultats(selectedExamen);
+    } catch (err) { alert('❌ Erreur'); }
   };
 
   const publierResultats = async () => {
@@ -207,54 +402,186 @@ const ResultatsBunexe: React.FC = () => {
     try {
       await api.post(`/resultats-examens/${selectedExamen}/publier`);
       alert('✅ Résultats publiés avec succès');
-    } catch (error) {
-      console.error('Erreur publication:', error);
-      alert('❌ Erreur lors de la publication');
-    }
+      if (selectedExamen) chargerResultats(selectedExamen);
+    } catch (err) { alert('❌ Erreur'); }
+  };
+
+  const getMention = (note: number) => {
+    if (note >= 16) return '🏅 Très Bien';
+    if (note >= 14) return '🎖️ Bien';
+    if (note >= 12) return '📘 Assez Bien';
+    if (note >= 10) return '✅ Passable';
+    return '❌ Non admis';
   };
 
   return (
     <div>
-      <h2>📊 Publication des résultats</h2>
-      
-      <div className={styles.formGroup}>
-        <label>Sélectionner un examen</label>
-        <select onChange={(e) => chargerResultats(Number(e.target.value))}>
-          <option value="">Choisir un examen</option>
-          {examens.map((ex: any) => (
-            <option key={ex.id} value={ex.id}>{ex.nom}</option>
-          ))}
-        </select>
+      <h1 className={styles.formTitle}>📊 Gestion des résultats</h1>
+      <p className={styles.formSubtitle}>Saisissez et publiez les résultats des examens</p>
+
+      <div className={styles.formCard} style={{ marginBottom: 24 }}>
+        <div className={styles.formGroup}>
+          <label className={styles.label}>Sélectionner un examen</label>
+          <select className={styles.input} onChange={(e) => chargerResultats(Number(e.target.value))}>
+            <option value="">-- Choisir un examen --</option>
+            {examens.map((ex: any) => <option key={ex.id} value={ex.id}>{ex.nom} - {ex.annee_session}</option>)}
+          </select>
+        </div>
       </div>
 
       {selectedExamen && (
         <>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Élève</th>
-                <th>Note</th>
-                <th>Mention</th>
-                <th>Statut</th>
-              </tr>
-            </thead>
-            <tbody>
-              {resultats.map((res: any) => (
-                <tr key={res.id}>
-                  <td>{res.eleve_nom}</td>
-                  <td>{res.note}/20</td>
-                  <td>{res.mention}</td>
-                  <td>{res.publie ? 'Publié' : 'En attente'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          
-          <button onClick={publierResultats} className={styles.btnPublier}>
-            Publier tous les résultats
-          </button>
+          <div className={styles.tableContainer}>
+            <table className={styles.table}>
+              <thead>
+                <tr><th>Matricule</th><th>Élève</th><th>École</th><th>Note /20</th><th>Mention</th><th>Statut</th><th>Action</th></tr>
+              </thead>
+              <tbody>
+                {loading ? <tr><td colSpan={7} style={{ textAlign: 'center' }}>Chargement...</td></tr> :
+                  resultats.map((res: any) => (
+                    <tr key={res.id}>
+                      <td><code>{res.matricule_national || '-'}</code></td>
+                      <td><strong>{res.eleve_prenom} {res.eleve_nom}</strong></td>
+                      <td>{res.ecole_nom || '-'}</td>
+                      <td>
+                        {res.publie ? (
+                          <span style={{ fontWeight: 'bold', fontSize: 18 }}>{res.note}/20</span>
+                        ) : (
+                          <input type="number" step="0.5" min="0" max="20" defaultValue={res.note} className={styles.input} style={{ width: 80 }}
+                            onBlur={(e) => saisirNote(res.id, parseFloat(e.target.value))} />
+                        )}
+                      </td>
+                      <td><span className={`${styles.badge} ${res.note >= 10 ? styles.badgeSuccess : styles.badgeDanger}`}>{getMention(res.note)}</span></td>
+                      <td>{res.publie ? <span className={styles.badgeSuccess}>✅ Publié</span> : <span className={styles.badgeWarning}>📝 En cours</span>}</td>
+                      <td>{!res.publie && <button onClick={() => saisirNote(res.id, res.note)} className={styles.primaryButton} style={{ padding: '4px 12px' }}>💾 Sauvegarder</button>}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
+            <button onClick={publierResultats} className={styles.primaryButton} style={{ background: '#06d6a0' }}>
+              <Award size={18} /> Publier tous les résultats
+            </button>
+          </div>
         </>
       )}
+    </div>
+  );
+};
+
+// ========== LISTE DES ÉLÈVES AVEC ÉCOLES ET MATRICULES ==========
+const BunexeEleves: React.FC = () => {
+  const [eleves, setEleves] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    const loadEleves = async () => {
+      try { const res = await api.get('/eleves'); setEleves(res.data); }
+      catch (err) { console.error(err); }
+      finally { setLoading(false); }
+    };
+    loadEleves();
+  }, []);
+
+  const filteredEleves = eleves.filter(e => 
+    `${e.nom} ${e.prenom}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.matricule_national?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div>
+      <h1 className={styles.formTitle}>🎓 Liste des élèves</h1>
+      <p className={styles.formSubtitle}>Consultez tous les élèves inscrits avec leurs matricules et écoles</p>
+
+      <div style={{ marginBottom: 24 }}>
+        <div className={styles.inputWrapper}>
+          <input type="text" placeholder="Rechercher par nom, prénom ou matricule..." className={styles.input}
+            value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+        </div>
+      </div>
+
+      <div className={styles.tableContainer}>
+        <table className={styles.table}>
+          <thead><tr><th>Matricule</th><th>Nom complet</th><th>École</th><th>Classe</th><th>Date naissance</th></tr></thead>
+          <tbody>
+            {loading ? <tr><td colSpan={5} style={{ textAlign: 'center' }}>Chargement...</td></tr> :
+              filteredEleves.length === 0 ? <tr><td colSpan={5} style={{ textAlign: 'center' }}>Aucun élève</td></tr> :
+              filteredEleves.map(eleve => (
+                <tr key={eleve.id}>
+                  <td><code>{eleve.matricule_national || 'En attente'}</code></td>
+                  <td><strong>{eleve.prenom} {eleve.nom}</strong></td>
+                  <td>{eleve.nom_ecole || '-'}</td>
+                  <td><span className={styles.badgeInfo} style={{ padding: '2px 8px', borderRadius: 12 }}>{eleve.classe || 'Non assignée'}</span></td>
+                  <td>{eleve.date_naissance ? new Date(eleve.date_naissance).toLocaleDateString('fr-FR') : '-'}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+// ========== LISTE DES ÉCOLES AVEC RESPONSABLES (SECRÉTARIAT) ==========
+const BunexeEcoles: React.FC = () => {
+  const [ecoles, setEcoles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadEcoles = async () => {
+      try {
+        const res = await api.get('/admin/ecoles');
+        // Récupérer les responsables pour chaque école
+        const ecolesAvecResponsables = await Promise.all(
+          res.data.map(async (ecole: any) => {
+            try {
+              const usersRes = await api.get('/admin/utilisateurs');
+              const responsables = usersRes.data.filter((u: any) => u.id_ecole === ecole.id && u.role === 'secretariat');
+              return { ...ecole, responsables };
+            } catch { return { ...ecole, responsables: [] }; }
+          })
+        );
+        setEcoles(ecolesAvecResponsables);
+      } catch (err) { console.error(err); }
+      finally { setLoading(false); }
+    };
+    loadEcoles();
+  }, []);
+
+  return (
+    <div>
+      <h1 className={styles.formTitle}>🏫 Gestion des écoles</h1>
+      <p className={styles.formSubtitle}>Consultez les écoles et leurs responsables (Secrétariat)</p>
+
+      <div className={styles.tableContainer}>
+        <table className={styles.table}>
+          <thead><tr><th>Nom de l'école</th><th>Adresse</th><th>Téléphone</th><th>Responsable(s)</th></tr></thead>
+          <tbody>
+            {loading ? <tr><td colSpan={4} style={{ textAlign: 'center' }}>Chargement...</td></tr> :
+              ecoles.length === 0 ? <tr><td colSpan={4} style={{ textAlign: 'center' }}>Aucune école</td></tr> :
+              ecoles.map(ecole => (
+                <tr key={ecole.id}>
+                  <td><strong>{ecole.nom}</strong></td>
+                  <td>{ecole.adresse || '-'}</td>
+                  <td>{ecole.telephone || '-'}</td>
+                  <td>
+                    {ecole.responsables && ecole.responsables.length > 0 ? (
+                      ecole.responsables.map((resp: any, idx: number) => (
+                        <div key={idx} style={{ marginBottom: 4 }}>
+                          <span className={styles.badgeInfo}>📋 {resp.prenom} {resp.nom}</span>
+                          <span style={{ fontSize: 12, color: '#6c757d', marginLeft: 8 }}>{resp.email}</span>
+                        </div>
+                      ))
+                    ) : <span style={{ color: '#6c757d' }}>Aucun responsable assigné</span>}
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
