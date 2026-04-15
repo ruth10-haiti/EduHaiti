@@ -50,6 +50,7 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  margin: 0;
 }
 
 .logo p {
@@ -93,6 +94,41 @@
 .navIcon {
   width: 22px;
   height: 22px;
+  min-width: 22px;
+}
+
+/* ========== BOUTON DÉCONNEXION ========== */
+.logoutSection {
+  margin-top: auto;
+  padding: 20px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logoutButton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(239, 35, 60, 0.1);
+  border: 1px solid rgba(239, 35, 60, 0.3);
+  border-radius: 12px;
+  color: #ef233c;
+  cursor: pointer;
+  transition: var(--transition);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.logoutButton:hover {
+  background: rgba(239, 35, 60, 0.2);
+  transform: translateX(4px);
+  border-color: #ef233c;
+}
+
+.logoutButton span {
+  flex: 1;
+  text-align: left;
 }
 
 /* ========== CONTENU PRINCIPAL ========== */
@@ -100,6 +136,8 @@
   flex: 1;
   margin-left: 280px;
   padding: 24px 32px;
+  width: calc(100% - 280px);
+  min-height: 100vh;
 }
 
 /* ========== CARTES STATS ========== */
@@ -132,6 +170,7 @@
   color: var(--gray);
   margin-bottom: 8px;
   font-weight: 500;
+  margin: 0 0 8px 0;
 }
 
 .statNumber {
@@ -198,6 +237,7 @@
   font-size: 0.875rem;
   transition: var(--transition);
   background: white;
+  box-sizing: border-box;
 }
 
 .input:focus {
@@ -233,9 +273,14 @@
   gap: 8px;
 }
 
-.primaryButton:hover {
+.primaryButton:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(67, 97, 238, 0.4);
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .secondaryButton {
@@ -259,12 +304,14 @@
   background: white;
   border-radius: var(--border-radius);
   overflow: hidden;
+  overflow-x: auto;
   box-shadow: var(--shadow-sm);
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 500px;
 }
 
 .table thead {
@@ -330,63 +377,126 @@
 }
 
 /* ========== RESPONSIVE ========== */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .sidebar {
-    width: 80px;
-  }
-  
-  .sidebar .logo h2, .sidebar .logo p, .navLink span {
-    display: none;
+    width: 240px;
   }
   
   .content {
-    margin-left: 80px;
+    margin-left: 240px;
+    width: calc(100% - 240px);
+    padding: 20px 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 70px;
+    transform: translateX(0);
+  }
+  
+  .sidebar:hover {
+    width: 240px;
+  }
+  
+  .logo h2, 
+  .logo p, 
+  .navLink span,
+  .logoutButton span {
+    display: none;
+  }
+  
+  .sidebar:hover .logo h2,
+  .sidebar:hover .logo p,
+  .sidebar:hover .navLink span,
+  .sidebar:hover .logoutButton span {
+    display: inline-block;
   }
   
   .navLink {
     justify-content: center;
     padding: 12px;
   }
+  
+  .sidebar:hover .navLink {
+    justify-content: flex-start;
+    padding: 12px 16px;
+  }
+  
+  .logoutButton {
+    justify-content: center;
+    padding: 12px;
+  }
+  
+  .sidebar:hover .logoutButton {
+    justify-content: flex-start;
+    padding: 12px 16px;
+  }
+  
+  .content {
+    margin-left: 70px;
+    width: calc(100% - 70px);
+    padding: 16px;
+  }
+  
+  .sidebar:hover + .content,
+  .content {
+    margin-left: 70px;
+    width: calc(100% - 70px);
+  }
 }
 
-/* Bouton de déconnexion */
-.logoutSection {
-  margin-top: auto;
-  padding: 20px 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+@media (max-width: 480px) {
+  .content {
+    padding: 12px;
+  }
+  
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .formCard {
+    padding: 20px;
+  }
+  
+  .tableContainer {
+    font-size: 0.8rem;
+  }
+  
+  .table th,
+  .table td {
+    padding: 10px 8px;
+  }
 }
 
-.logoutButton {
-  display: flex;
-  align-items: center;
+/* ========== UTILITAIRES ========== */
+.textCenter {
+  text-align: center;
+}
+
+.mt20 {
+  margin-top: 20px;
+}
+
+.mb20 {
+  margin-bottom: 20px;
+}
+
+.gap12 {
   gap: 12px;
-  width: 100%;
-  padding: 12px 16px;
-  background: rgba(239, 35, 60, 0.1);
-  border: 1px solid rgba(239, 35, 60, 0.3);
-  border-radius: 12px;
-  color: #ef233c;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 500;
 }
 
-.logoutButton:hover {
-  background: rgba(239, 35, 60, 0.2);
-  transform: translateX(4px);
+.flex {
+  display: flex;
 }
 
-.logoutButton span {
-  flex: 1;
-  text-align: left;
+.flexBetween {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-/* Assurez-vous que la sidebar utilise flexbox */
-.sidebar {
+.flexColumn {
   display: flex;
   flex-direction: column;
-}
-
-.nav {
-  flex: 1;
 }

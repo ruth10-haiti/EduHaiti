@@ -22,12 +22,19 @@ const DashboardLayout: React.FC = () => {
   ];
 
   const handleLogout = () => {
-    if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('refreshToken');
-      navigate('/connexion');
-    }
+    // Supprimer tous les tokens et données de session
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('refreshToken');
+    sessionStorage.clear();
+    
+    // Redirection vers la page de connexion
+    navigate('/connexion', { replace: true });
+    
+    // Forcer un rechargement pour vider tous les états
+    setTimeout(() => {
+      window.location.href = '/connexion';
+    }, 100);
   };
 
   return (
