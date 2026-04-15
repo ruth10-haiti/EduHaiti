@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {  UserPlus, Trash2 } from 'lucide-react';
 import api from '../services/api';
-import styles from '../../styles/AdminDashboard.module.css';
+import styles from "../pages/styles/AdminDashboard.module.css";
 
 const GestionUtilisateurs: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);

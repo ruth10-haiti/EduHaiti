@@ -7,7 +7,7 @@ import {
   GraduationCap, 
   FileText,
 } from 'lucide-react';
-import styles from '../../styles/AdminDashboard.module.css';
+import styles from "../pages/styles/AdminDashboard.module.css";
 
 const DashboardLayout: React.FC = () => {
   const menuItems = [
