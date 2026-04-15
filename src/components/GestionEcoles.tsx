@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { School, MapPin, Phone, Trash2, Edit2, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { School, MapPin, Phone, Trash2, Edit2, CheckCircle, AlertCircle, X, Search } from 'lucide-react';
 import api from '../services/api';
 import styles from "../pages/styles/AdminDashboard.module.css";
 
@@ -17,6 +17,7 @@ const GestionEcoles: React.FC = () => {
   const [editingEcole, setEditingEcole] = useState<Ecole | null>(null);
   const [formData, setFormData] = useState({ nom: '', adresse: '', telephone: '' });
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     loadEcoles();
@@ -39,11 +40,36 @@ const GestionEcoles: React.FC = () => {
     setTimeout(() => setNotification(null), 5000);
   };
 
+  const verifierExistenceEcole = async (nom: string, idExclu?: number): Promise<boolean> => {
+    try {
+      const res = await api.get('/admin/ecoles');
+      const existe = res.data.some((e: Ecole) => 
+        e.nom.toLowerCase() === nom.toLowerCase() && e.id !== idExclu
+      );
+      return existe;
+    } catch {
+      return false;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.nom.trim()) {
+      showNotification('error', 'Le nom de l\'école est requis');
+      return;
+    }
+
     setLoading(true);
     
     try {
+      const existe = await verifierExistenceEcole(formData.nom, editingEcole?.id);
+      if (existe) {
+        showNotification('error', '⚠️ Cette école existe déjà dans le système !');
+        setLoading(false);
+        return;
+      }
+
       if (editingEcole) {
         await api.put(`/admin/ecoles/${editingEcole.id}`, formData);
         showNotification('success', 'École modifiée avec succès');
@@ -62,7 +88,7 @@ const GestionEcoles: React.FC = () => {
   };
 
   const handleDelete = async (id: number, nom: string) => {
-    if (window.confirm(`Supprimer l'école "${nom}" ? Cette action est irréversible.`)) {
+    if (window.confirm(`⚠️ Supprimer définitivement l'école "${nom}" ?\n\nCette action est irréversible.`)) {
       try {
         await api.delete(`/admin/ecoles/${id}`);
         showNotification('success', 'École supprimée');
@@ -81,13 +107,16 @@ const GestionEcoles: React.FC = () => {
 
   const editEcole = (ecole: Ecole) => {
     setEditingEcole(ecole);
-    setFormData({ nom: ecole.nom, adresse: ecole.adresse, telephone: ecole.telephone });
+    setFormData({ nom: ecole.nom, adresse: ecole.adresse || '', telephone: ecole.telephone || '' });
     setShowForm(true);
   };
 
+  const filteredEcoles = ecoles.filter(e => 
+    e.nom.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div>
-      {/* Notification */}
       {notification && (
         <div className={styles.notification}>
           {notification.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
@@ -111,21 +140,23 @@ const GestionEcoles: React.FC = () => {
         )}
       </div>
 
-      {/* Formulaire */}
       {showForm && (
         <div className={styles.formCard} style={{ marginBottom: 32 }}>
           <h3>{editingEcole ? '✏️ Modifier l\'école' : '➕ Ajouter une école'}</h3>
           <form onSubmit={handleSubmit}>
             <div className={styles.formGroup}>
-              <label className={styles.label}><School size={16} /> Nom *</label>
+              <label className={styles.label}><School size={16} /> Nom de l'école *</label>
               <input
                 type="text"
                 className={styles.input}
                 value={formData.nom}
                 onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
                 required
-                placeholder="Ex: Lycée National"
+                placeholder="Ex: Lycée National de Port-au-Prince"
               />
+              <small style={{ color: '#6c757d', fontSize: 12, marginTop: 4, display: 'block' }}>
+                ⚠️ Le nom doit être unique. Une vérification sera effectuée.
+              </small>
             </div>
             <div className={styles.formGroup}>
               <label className={styles.label}><MapPin size={16} /> Adresse</label>
@@ -149,34 +180,35 @@ const GestionEcoles: React.FC = () => {
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
               <button type="submit" className={styles.primaryButton} disabled={loading}>
-                {loading ? 'Enregistrement...' : (editingEcole ? 'Modifier' : 'Ajouter')}
+                {loading ? 'Vérification...' : (editingEcole ? 'Modifier' : 'Ajouter')}
               </button>
-              <button type="button" onClick={resetForm} className={styles.secondaryButton}>
-                Annuler
-              </button>
+              <button type="button" onClick={resetForm} className={styles.secondaryButton}>Annuler</button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Liste des écoles */}
+      <div style={{ marginBottom: 24 }}>
+        <div className={styles.inputWrapper}>
+          <Search size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#6c757d' }} />
+          <input
+            type="text"
+            placeholder="Rechercher une école..."
+            className={styles.input}
+            style={{ paddingLeft: 40 }}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
       <div className={styles.tableContainer}>
         <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Adresse</th>
-              <th>Téléphone</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Nom</th><th>Adresse</th><th>Téléphone</th><th>Actions</th></tr></thead>
           <tbody>
-            {loading && !showForm ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center' }}>Chargement...</td></tr>
-            ) : ecoles.length === 0 ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center' }}>Aucune école trouvée</td></tr>
-            ) : (
-              ecoles.map((ecole) => (
+            {loading ? <tr><td colSpan={4} style={{ textAlign: 'center' }}>Chargement...</td></tr>
+            : filteredEcoles.length === 0 ? <tr><td colSpan={4} style={{ textAlign: 'center' }}>Aucune école trouvée</td></tr>
+            : filteredEcoles.map((ecole) => (
                 <tr key={ecole.id}>
                   <td><strong>{ecole.nom}</strong></td>
                   <td>{ecole.adresse || '-'}</td>
@@ -190,8 +222,7 @@ const GestionEcoles: React.FC = () => {
                     </button>
                   </td>
                 </tr>
-              ))
-            )}
+              ))}
           </tbody>
         </table>
       </div>

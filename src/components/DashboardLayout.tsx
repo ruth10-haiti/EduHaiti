@@ -23,12 +23,9 @@ const DashboardLayout: React.FC = () => {
 
   const handleLogout = () => {
     if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
-      // Supprimer le token et les infos utilisateur
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('refreshToken');
-      
-      // Rediriger vers la page de connexion
       navigate('/connexion');
     }
   };

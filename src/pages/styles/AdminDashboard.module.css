@@ -385,7 +385,6 @@
 .sidebar {
   display: flex;
   flex-direction: column;
-  /* Gardez vos styles existants */
 }
 
 .nav {
