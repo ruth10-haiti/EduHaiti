@@ -1,15 +1,18 @@
 import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   School, 
   Users, 
   GraduationCap, 
   FileText,
+  LogOut
 } from 'lucide-react';
 import styles from "../pages/styles/AdminDashboard.module.css";
 
 const DashboardLayout: React.FC = () => {
+  const navigate = useNavigate();
+
   const menuItems = [
     { path: '/admin', icon: LayoutDashboard, label: 'Accueil' },
     { path: '/admin/ecoles', icon: School, label: 'Écoles' },
@@ -17,6 +20,18 @@ const DashboardLayout: React.FC = () => {
     { path: '/admin/eleves', icon: GraduationCap, label: 'Élèves' },
     { path: '/admin/examens', icon: FileText, label: 'Examens' },
   ];
+
+  const handleLogout = () => {
+    if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
+      // Supprimer le token et les infos utilisateur
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('refreshToken');
+      
+      // Rediriger vers la page de connexion
+      navigate('/connexion');
+    }
+  };
 
   return (
     <div className={styles.dashboardContainer}>
@@ -39,6 +54,13 @@ const DashboardLayout: React.FC = () => {
             </NavLink>
           ))}
         </nav>
+        
+        <div className={styles.logoutSection}>
+          <button onClick={handleLogout} className={styles.logoutButton}>
+            <LogOut className={styles.navIcon} />
+            <span>Déconnexion</span>
+          </button>
+        </div>
       </aside>
       <main className={styles.content}>
         <Outlet />
