@@ -16,9 +16,17 @@ const SecretariatDashboard: React.FC = () => {
   }, [user, navigate]);
 
   const handleLogout = () => {
-    localStorage.clear();
-    navigate('/connexion');
-  };
+  localStorage.clear();
+  sessionStorage.clear();
+  
+  // Supprimer les items spécifiques
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('refreshToken');
+  
+  // Rediriger vers la page de connexion
+  window.location.href = '/connexion';
+};
 
   return (
     <div className={styles.dashboardContainer}>
