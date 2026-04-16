@@ -25,6 +25,15 @@ interface EleveForm {
   adresse: string;
 }
 
+// Classes valides pour le système scolaire haïtien
+const classesValides = [
+  'Préscolaire', 'Jardin', 'Préparatoire',
+  '1ère AF', '2ème AF', '3ème AF', '4ème AF', '5ème AF', '6ème AF',
+  '7ème AF', '8ème AF', '9ème AF',
+  'NS1', 'NS2', 'NS3', 'NS4',
+  'RH1', 'RH2', 'RH3'
+];
+
 const AjouterEleveForm: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -33,6 +42,7 @@ const AjouterEleveForm: React.FC = () => {
   const [showParentLink, setShowParentLink] = useState(false);
   const [parentEmail, setParentEmail] = useState('');
   const [matriculeGenere, setMatriculeGenere] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState<EleveForm>({
     nom: '', prenom: '', date_naissance: '', lieu_naissance: '',
     sexe: 'M', id_ecole: '', classe: '',
@@ -62,8 +72,92 @@ const AjouterEleveForm: React.FC = () => {
     }
   };
 
+  // Validation de tous les champs
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    // Validation du nom (lettres uniquement, 2-50 caractères)
+    if (!form.nom.trim()) {
+      newErrors.nom = 'Le nom est requis';
+    } else if (form.nom.length < 2) {
+      newErrors.nom = 'Le nom doit contenir au moins 2 caractères';
+    } else if (form.nom.length > 50) {
+      newErrors.nom = 'Le nom ne peut pas dépasser 50 caractères';
+    } else if (!/^[a-zA-ZÀ-ÿ\s-]+$/.test(form.nom)) {
+      newErrors.nom = 'Le nom ne doit contenir que des lettres';
+    }
+
+    // Validation du prénom (lettres uniquement, 2-50 caractères)
+    if (!form.prenom.trim()) {
+      newErrors.prenom = 'Le prénom est requis';
+    } else if (form.prenom.length < 2) {
+      newErrors.prenom = 'Le prénom doit contenir au moins 2 caractères';
+    } else if (form.prenom.length > 50) {
+      newErrors.prenom = 'Le prénom ne peut pas dépasser 50 caractères';
+    } else if (!/^[a-zA-ZÀ-ÿ\s-]+$/.test(form.prenom)) {
+      newErrors.prenom = 'Le prénom ne doit contenir que des lettres';
+    }
+
+    // Validation de la date de naissance (pas dans le futur, pas trop vieux)
+    if (form.date_naissance) {
+      const selectedDate = new Date(form.date_naissance);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const minDate = new Date('1900-01-01');
+      const maxAgeDate = new Date();
+      maxAgeDate.setFullYear(today.getFullYear() - 100);
+
+      if (selectedDate > today) {
+        newErrors.date_naissance = 'La date de naissance ne peut pas être dans le futur';
+      } else if (selectedDate < maxAgeDate) {
+        newErrors.date_naissance = 'Date de naissance invalide (âge maximum 100 ans)';
+      } else if (selectedDate < minDate) {
+        newErrors.date_naissance = 'Date de naissance invalide';
+      }
+    }
+
+    // Validation du lieu de naissance (optionnel mais cohérent)
+    if (form.lieu_naissance && form.lieu_naissance.length > 100) {
+      newErrors.lieu_naissance = 'Le lieu de naissance ne peut pas dépasser 100 caractères';
+    }
+
+    // Validation de la classe
+    if (form.classe && !classesValides.includes(form.classe)) {
+      newErrors.classe = `Classe invalide. Valeurs acceptées: ${classesValides.join(', ')}`;
+    }
+
+    // Validation du téléphone parent (format haïtien)
+    if (form.tel_parent) {
+      const phoneClean = form.tel_parent.replace(/\s/g, '');
+      if (!/^(\+509|509)?[0-9]{8}$/.test(phoneClean)) {
+        newErrors.tel_parent = 'Téléphone invalide. Format: 12345678 ou +50912345678';
+      }
+    }
+
+    // Validation de l'email parent
+    if (form.email_parent && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email_parent)) {
+      newErrors.email_parent = 'Email invalide. Exemple: parent@email.com';
+    }
+
+    // Validation de l'adresse (optionnelle)
+    if (form.adresse && form.adresse.length > 255) {
+      newErrors.adresse = 'L\'adresse ne peut pas dépasser 255 caractères';
+    }
+
+    // Validation de l'école
+    if (!form.id_ecole) {
+      newErrors.id_ecole = 'Veuillez sélectionner une école';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) return;
+    
     setLoading(true);
     try {
       if (id) {
@@ -95,6 +189,11 @@ const AjouterEleveForm: React.FC = () => {
       return;
     }
     
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parentEmail)) {
+      alert('Email invalide');
+      return;
+    }
+    
     setLoading(true);
     try {
       const eleveId = id || (await api.get('/eleves')).data.find((e: any) => e.matricule_national === matriculeGenere)?.id;
@@ -114,6 +213,11 @@ const AjouterEleveForm: React.FC = () => {
     }
   };
 
+  // Dates min et max
+  const today = new Date().toISOString().split('T')[0];
+  const minDate = '1900-01-01';
+  const maxDate = today;
+
   return (
     <div className={styles.formCard}>
       <div style={{ marginBottom: 24 }}>
@@ -129,26 +233,59 @@ const AjouterEleveForm: React.FC = () => {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <div className={styles.formGroup}>
             <label className={styles.label}><User size={16} /> Nom *</label>
-            <input type="text" className={styles.input} required
-              value={form.nom} onChange={e => setForm({...form, nom: e.target.value})} />
+            <input 
+              type="text" 
+              className={`${styles.input} ${errors.nom ? styles.inputError : ''}`}
+              required
+              value={form.nom} 
+              onChange={e => setForm({...form, nom: e.target.value.toUpperCase()})} 
+              placeholder="Ex: JEAN"
+              maxLength={50}
+            />
+            {errors.nom && <p className={styles.errorMessage}>{errors.nom}</p>}
           </div>
           <div className={styles.formGroup}>
             <label className={styles.label}><User size={16} /> Prénom *</label>
-            <input type="text" className={styles.input} required
-              value={form.prenom} onChange={e => setForm({...form, prenom: e.target.value})} />
+            <input 
+              type="text" 
+              className={`${styles.input} ${errors.prenom ? styles.inputError : ''}`}
+              required
+              value={form.prenom} 
+              onChange={e => setForm({...form, prenom: e.target.value})} 
+              placeholder="Ex: Sandy"
+              maxLength={50}
+            />
+            {errors.prenom && <p className={styles.errorMessage}>{errors.prenom}</p>}
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <div className={styles.formGroup}>
-            <label className={styles.label}><Calendar size={16} /> Date naissance</label>
-            <input type="date" className={styles.input}
-              value={form.date_naissance} onChange={e => setForm({...form, date_naissance: e.target.value})} />
+            <label className={styles.label}><Calendar size={16} /> Date de naissance</label>
+            <input 
+              type="date" 
+              className={`${styles.input} ${errors.date_naissance ? styles.inputError : ''}`}
+              value={form.date_naissance} 
+              min={minDate}
+              max={maxDate}
+              onChange={e => setForm({...form, date_naissance: e.target.value})}
+            />
+            <small style={{ color: '#6c757d', fontSize: 12, marginTop: 4, display: 'block' }}>
+              📅 Format: JJ/MM/AAAA - Ne peut pas être dans le futur
+            </small>
+            {errors.date_naissance && <p className={styles.errorMessage}>{errors.date_naissance}</p>}
           </div>
           <div className={styles.formGroup}>
-            <label className={styles.label}><MapPin size={16} /> Lieu naissance</label>
-            <input type="text" className={styles.input}
-              value={form.lieu_naissance} onChange={e => setForm({...form, lieu_naissance: e.target.value})} />
+            <label className={styles.label}><MapPin size={16} /> Lieu de naissance</label>
+            <input 
+              type="text" 
+              className={`${styles.input} ${errors.lieu_naissance ? styles.inputError : ''}`}
+              value={form.lieu_naissance} 
+              onChange={e => setForm({...form, lieu_naissance: e.target.value})}
+              placeholder="Ex: Port-au-Prince"
+              maxLength={100}
+            />
+            {errors.lieu_naissance && <p className={styles.errorMessage}>{errors.lieu_naissance}</p>}
           </div>
         </div>
 
@@ -156,41 +293,104 @@ const AjouterEleveForm: React.FC = () => {
           <div className={styles.formGroup}>
             <label className={styles.label}>Sexe</label>
             <select className={styles.input} value={form.sexe} onChange={e => setForm({...form, sexe: e.target.value})}>
-              <option value="M">Masculin</option>
-              <option value="F">Féminin</option>
+              <option value="M">👨 Masculin</option>
+              <option value="F">👩 Féminin</option>
             </select>
           </div>
           <div className={styles.formGroup}>
-            <label className={styles.label}><GraduationCap size={16} /> École</label>
-            <select className={styles.input} value={form.id_ecole} onChange={e => setForm({...form, id_ecole: e.target.value})}>
-              <option value="">Sélectionnez une école</option>
+            <label className={styles.label}><GraduationCap size={16} /> École *</label>
+            <select 
+              className={`${styles.input} ${errors.id_ecole ? styles.inputError : ''}`} 
+              value={form.id_ecole} 
+              onChange={e => setForm({...form, id_ecole: e.target.value})}
+              required
+            >
+              <option value="">-- Sélectionnez une école --</option>
               {ecoles.map((ecole: Ecole) => <option key={ecole.id} value={ecole.id}>{ecole.nom}</option>)}
             </select>
+            {errors.id_ecole && <p className={styles.errorMessage}>{errors.id_ecole}</p>}
           </div>
         </div>
 
         <div className={styles.formGroup}>
-          <label className={styles.label}>Classe</label>
-          <input type="text" className={styles.input} placeholder="Ex: 6ème A"
-            value={form.classe} onChange={e => setForm({...form, classe: e.target.value})} />
+          <label className={styles.label}><GraduationCap size={16} /> Classe</label>
+          <select 
+            className={`${styles.input} ${errors.classe ? styles.inputError : ''}`} 
+            value={form.classe} 
+            onChange={e => setForm({...form, classe: e.target.value})}
+          >
+            <option value="">-- Sélectionnez une classe --</option>
+            <optgroup label="Préscolaire">
+              <option value="Préscolaire">📚 Préscolaire</option>
+              <option value="Jardin">🌱 Jardin</option>
+              <option value="Préparatoire">✏️ Préparatoire</option>
+            </optgroup>
+            <optgroup label="Fondamental (AF)">
+              <option value="1ère AF">1ère AF</option>
+              <option value="2ème AF">2ème AF</option>
+              <option value="3ème AF">3ème AF</option>
+              <option value="4ème AF">4ème AF</option>
+              <option value="5ème AF">5ème AF</option>
+              <option value="6ème AF">6ème AF</option>
+              <option value="7ème AF">7ème AF</option>
+              <option value="8ème AF">8ème AF</option>
+              <option value="9ème AF">9ème AF</option>
+            </optgroup>
+            <optgroup label="Secondaire (NS)">
+              <option value="NS1">NS1</option>
+              <option value="NS2">NS2</option>
+              <option value="NS3">NS3</option>
+              <option value="NS4">NS4</option>
+            </optgroup>
+            {/* <optgroup label="Humanités (RH)">
+              <option value="RH1">RH1</option>
+              <option value="RH2">RH2</option>
+              <option value="RH3">RH3</option>
+            </optgroup> */}
+          </select>
+          {errors.classe && <p className={styles.errorMessage}>{errors.classe}</p>}
         </div>
 
         <div className={styles.formGroup}>
           <label className={styles.label}><Phone size={16} /> Téléphone parent</label>
-          <input type="tel" className={styles.input}
-            value={form.tel_parent} onChange={e => setForm({...form, tel_parent: e.target.value})} />
+          <input 
+            type="tel" 
+            className={`${styles.input} ${errors.tel_parent ? styles.inputError : ''}`}
+            value={form.tel_parent} 
+            onChange={e => setForm({...form, tel_parent: e.target.value})}
+            placeholder="Ex: 12345678 ou +50912345678"
+            maxLength={15}
+          />
+          <small style={{ color: '#6c757d', fontSize: 12, marginTop: 4, display: 'block' }}>
+            📱 Format: 8 chiffres ou +509 suivi de 8 chiffres
+          </small>
+          {errors.tel_parent && <p className={styles.errorMessage}>{errors.tel_parent}</p>}
         </div>
 
         <div className={styles.formGroup}>
           <label className={styles.label}><Mail size={16} /> Email parent</label>
-          <input type="email" className={styles.input}
-            value={form.email_parent} onChange={e => setForm({...form, email_parent: e.target.value})} />
+          <input 
+            type="email" 
+            className={`${styles.input} ${errors.email_parent ? styles.inputError : ''}`}
+            value={form.email_parent} 
+            onChange={e => setForm({...form, email_parent: e.target.value})}
+            placeholder="parent@exemple.com"
+            maxLength={100}
+          />
+          {errors.email_parent && <p className={styles.errorMessage}>{errors.email_parent}</p>}
         </div>
 
         <div className={styles.formGroup}>
           <label className={styles.label}><Home size={16} /> Adresse</label>
-          <input type="text" className={styles.input}
-            value={form.adresse} onChange={e => setForm({...form, adresse: e.target.value})} />
+          <input 
+            type="text" 
+            className={`${styles.input} ${errors.adresse ? styles.inputError : ''}`}
+            value={form.adresse} 
+            onChange={e => setForm({...form, adresse: e.target.value})}
+            placeholder="Ex: Delmas 40, Port-au-Prince"
+            maxLength={255}
+          />
+          {errors.adresse && <p className={styles.errorMessage}>{errors.adresse}</p>}
         </div>
 
         <div style={{ padding: 12, background: '#e3f2fd', borderRadius: 8, marginBottom: 24 }}>
