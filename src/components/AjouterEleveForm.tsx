@@ -25,8 +25,8 @@ interface EleveForm {
   adresse: string;
 }
 
-// Classes valides pour le système scolaire haïtien (1ère AF à NS4 uniquement)
-const classesValides = [
+// Liste des classes pour le select
+const listeClasses = [
   '1ère AF', '2ème AF', '3ème AF', '4ème AF', '5ème AF', '6ème AF',
   '7ème AF', '8ème AF', '9ème AF',
   'NS1', 'NS2', 'NS3', 'NS4'
@@ -135,8 +135,8 @@ const AjouterEleveForm: React.FC = () => {
     // Validation de la classe
     if (!form.classe) {
       newErrors.classe = 'Veuillez sélectionner une classe';
-    } else if (!classesValides.includes(form.classe)) {
-      newErrors.classe = `Classe invalide. Valeurs acceptées: ${classesValides.join(', ')}`;
+    } else if (!listeClasses.includes(form.classe)) {
+      newErrors.classe = `Classe invalide. Valeurs acceptées: ${listeClasses.join(', ')}`;
     }
 
     // Validation du téléphone parent
@@ -328,7 +328,7 @@ const AjouterEleveForm: React.FC = () => {
           </div>
         </div>
 
-        {/* Champ Classe - exactement comme le champ Sexe */}
+        {/* Champ Classe - select simple comme le sexe */}
         <div className={styles.formGroup}>
           <label className={styles.label}><GraduationCap size={16} /> Classe *</label>
           <select 
@@ -338,19 +338,9 @@ const AjouterEleveForm: React.FC = () => {
             required
           >
             <option value="">-- Sélectionnez une classe --</option>
-            <option value="1ère AF">1ère AF</option>
-            <option value="2ème AF">2ème AF</option>
-            <option value="3ème AF">3ème AF</option>
-            <option value="4ème AF">4ème AF</option>
-            <option value="5ème AF">5ème AF</option>
-            <option value="6ème AF">6ème AF</option>
-            <option value="7ème AF">7ème AF</option>
-            <option value="8ème AF">8ème AF</option>
-            <option value="9ème AF">9ème AF</option>
-            <option value="NS1">NS1</option>
-            <option value="NS2">NS2</option>
-            <option value="NS3">NS3</option>
-            <option value="NS4">NS4</option>
+            {listeClasses.map((classe) => (
+              <option key={classe} value={classe}>{classe}</option>
+            ))}
           </select>
           {errors.classe && <p className={styles.errorMessage}>{errors.classe}</p>}
         </div>
