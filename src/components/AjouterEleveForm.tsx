@@ -56,7 +56,7 @@ const AjouterEleveForm: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState<EleveForm>({
     nom: '', prenom: '', date_naissance: '', lieu_naissance: '',
-    sexe: 'M', id_ecole: '', classe: '',
+    sexe: '', id_ecole: '', classe: '',
     tel_parent: '', email_parent: '', adresse: ''
   });
 
@@ -107,6 +107,11 @@ const AjouterEleveForm: React.FC = () => {
       newErrors.prenom = 'Le prénom ne peut pas dépasser 50 caractères';
     } else if (!/^[a-zA-ZÀ-ÿ\s-]+$/.test(form.prenom)) {
       newErrors.prenom = 'Le prénom ne doit contenir que des lettres';
+    }
+
+    // Validation du sexe
+    if (!form.sexe) {
+      newErrors.sexe = 'Veuillez sélectionner le sexe';
     }
 
     // Validation de la date de naissance (âge entre 4 et 50 ans)
@@ -305,14 +310,26 @@ const AjouterEleveForm: React.FC = () => {
           </div>
         </div>
 
+        {/* ✅ SEXE ET ÉCOLE - Version corrigée */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          
+          {/* ✅ SEXE CORRIGÉ */}
           <div className={styles.formGroup}>
-            <label className={styles.label}>Sexe</label>
-            <select className={styles.input} value={form.sexe} onChange={e => setForm({...form, sexe: e.target.value})}>
-              <option value="M">👨 Masculin</option>
-              <option value="F">👩 Féminin</option>
+            <label className={styles.label}>Sexe *</label>
+            <select 
+              className={`${styles.input} ${errors.sexe ? styles.inputError : ''}`}
+              value={form.sexe || ""}
+              onChange={e => setForm({...form, sexe: e.target.value})}
+              required
+            >
+              <option value="">-- Sélectionnez le sexe --</option>
+              <option value="MASCULIN">👨 Masculin</option>
+              <option value="FEMININ">👩 Féminin</option>
             </select>
+            {errors.sexe && <p className={styles.errorMessage}>{errors.sexe}</p>}
           </div>
+
+          {/* ÉCOLE (INCHANGÉ) */}
           <div className={styles.formGroup}>
             <label className={styles.label}><GraduationCap size={16} /> École *</label>
             <select 
@@ -322,24 +339,30 @@ const AjouterEleveForm: React.FC = () => {
               required
             >
               <option value="">-- Sélectionnez une école --</option>
-              {ecoles.map((ecole: Ecole) => <option key={ecole.id} value={ecole.id}>{ecole.nom}</option>)}
+              {ecoles.map((ecole: Ecole) => (
+                <option key={ecole.id} value={ecole.id}>{ecole.nom}</option>
+              ))}
             </select>
             {errors.id_ecole && <p className={styles.errorMessage}>{errors.id_ecole}</p>}
           </div>
         </div>
 
-        {/* Champ Classe - select simple comme le sexe */}
+        {/* ✅ CLASSE CORRIGÉE */}
         <div className={styles.formGroup}>
-          <label className={styles.label}><GraduationCap size={16} /> Classe *</label>
+          <label className={styles.label}>
+            <GraduationCap size={16} /> Classe *
+          </label>
           <select 
             className={`${styles.input} ${errors.classe ? styles.inputError : ''}`} 
-            value={form.classe} 
+            value={form.classe || ""}
             onChange={e => setForm({...form, classe: e.target.value})}
             required
           >
             <option value="">-- Sélectionnez une classe --</option>
             {listeClasses.map((classe) => (
-              <option key={classe} value={classe}>{classe}</option>
+              <option key={classe} value={classe}>
+                {classe}
+              </option>
             ))}
           </select>
           {errors.classe && <p className={styles.errorMessage}>{errors.classe}</p>}
