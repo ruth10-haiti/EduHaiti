@@ -25,14 +25,25 @@ interface EleveForm {
   adresse: string;
 }
 
-// Classes valides pour le système scolaire haïtien
+// Classes valides pour le système scolaire haïtien (1ère AF à NS4 uniquement)
 const classesValides = [
-  'Préscolaire', 'Jardin', 'Préparatoire',
   '1ère AF', '2ème AF', '3ème AF', '4ème AF', '5ème AF', '6ème AF',
   '7ème AF', '8ème AF', '9ème AF',
-  'NS1', 'NS2', 'NS3', 'NS4',
-  'RH1', 'RH2', 'RH3'
+  'NS1', 'NS2', 'NS3', 'NS4'
 ];
+
+// Calculer l'âge à partir de la date de naissance
+const calculerAge = (dateNaissance: string): number => {
+  if (!dateNaissance) return 0;
+  const today = new Date();
+  const birthDate = new Date(dateNaissance);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 const AjouterEleveForm: React.FC = () => {
   const { id } = useParams();
@@ -76,7 +87,7 @@ const AjouterEleveForm: React.FC = () => {
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    // Validation du nom (lettres uniquement, 2-50 caractères)
+    // Validation du nom
     if (!form.nom.trim()) {
       newErrors.nom = 'Le nom est requis';
     } else if (form.nom.length < 2) {
@@ -87,7 +98,7 @@ const AjouterEleveForm: React.FC = () => {
       newErrors.nom = 'Le nom ne doit contenir que des lettres';
     }
 
-    // Validation du prénom (lettres uniquement, 2-50 caractères)
+    // Validation du prénom
     if (!form.prenom.trim()) {
       newErrors.prenom = 'Le prénom est requis';
     } else if (form.prenom.length < 2) {
@@ -98,35 +109,37 @@ const AjouterEleveForm: React.FC = () => {
       newErrors.prenom = 'Le prénom ne doit contenir que des lettres';
     }
 
-    // Validation de la date de naissance (pas dans le futur, pas trop vieux)
-    if (form.date_naissance) {
+    // Validation de la date de naissance (âge entre 4 et 50 ans)
+    if (!form.date_naissance) {
+      newErrors.date_naissance = 'La date de naissance est requise';
+    } else {
       const selectedDate = new Date(form.date_naissance);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const minDate = new Date('1900-01-01');
-      const maxAgeDate = new Date();
-      maxAgeDate.setFullYear(today.getFullYear() - 100);
+      const age = calculerAge(form.date_naissance);
 
       if (selectedDate > today) {
         newErrors.date_naissance = 'La date de naissance ne peut pas être dans le futur';
-      } else if (selectedDate < maxAgeDate) {
-        newErrors.date_naissance = 'Date de naissance invalide (âge maximum 100 ans)';
-      } else if (selectedDate < minDate) {
-        newErrors.date_naissance = 'Date de naissance invalide';
+      } else if (age < 4) {
+        newErrors.date_naissance = 'L\'élève doit avoir au moins 4 ans';
+      } else if (age > 50) {
+        newErrors.date_naissance = 'L\'élève ne peut pas avoir plus de 50 ans';
       }
     }
 
-    // Validation du lieu de naissance (optionnel mais cohérent)
+    // Validation du lieu de naissance
     if (form.lieu_naissance && form.lieu_naissance.length > 100) {
       newErrors.lieu_naissance = 'Le lieu de naissance ne peut pas dépasser 100 caractères';
     }
 
     // Validation de la classe
-    if (form.classe && !classesValides.includes(form.classe)) {
+    if (!form.classe) {
+      newErrors.classe = 'Veuillez sélectionner une classe';
+    } else if (!classesValides.includes(form.classe)) {
       newErrors.classe = `Classe invalide. Valeurs acceptées: ${classesValides.join(', ')}`;
     }
 
-    // Validation du téléphone parent (format haïtien)
+    // Validation du téléphone parent
     if (form.tel_parent) {
       const phoneClean = form.tel_parent.replace(/\s/g, '');
       if (!/^(\+509|509)?[0-9]{8}$/.test(phoneClean)) {
@@ -139,7 +152,7 @@ const AjouterEleveForm: React.FC = () => {
       newErrors.email_parent = 'Email invalide. Exemple: parent@email.com';
     }
 
-    // Validation de l'adresse (optionnelle)
+    // Validation de l'adresse
     if (form.adresse && form.adresse.length > 255) {
       newErrors.adresse = 'L\'adresse ne peut pas dépasser 255 caractères';
     }
@@ -213,10 +226,12 @@ const AjouterEleveForm: React.FC = () => {
     }
   };
 
-  // Dates min et max
-  const today = new Date().toISOString().split('T')[0];
-  const minDate = '1900-01-01';
-  const maxDate = today;
+  // Dates min et max (pour l'âge entre 4 et 50 ans)
+  const today = new Date();
+  const maxDate = new Date(today);
+  maxDate.setFullYear(today.getFullYear() - 4);
+  const minDate = new Date(today);
+  minDate.setFullYear(today.getFullYear() - 50);
 
   return (
     <div className={styles.formCard}>
@@ -261,17 +276,18 @@ const AjouterEleveForm: React.FC = () => {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <div className={styles.formGroup}>
-            <label className={styles.label}><Calendar size={16} /> Date de naissance</label>
+            <label className={styles.label}><Calendar size={16} /> Date de naissance *</label>
             <input 
               type="date" 
               className={`${styles.input} ${errors.date_naissance ? styles.inputError : ''}`}
               value={form.date_naissance} 
-              min={minDate}
-              max={maxDate}
+              min={minDate.toISOString().split('T')[0]}
+              max={maxDate.toISOString().split('T')[0]}
               onChange={e => setForm({...form, date_naissance: e.target.value})}
+              required
             />
             <small style={{ color: '#6c757d', fontSize: 12, marginTop: 4, display: 'block' }}>
-              📅 Format: JJ/MM/AAAA - Ne peut pas être dans le futur
+              📅 Âge requis: entre 4 et 50 ans
             </small>
             {errors.date_naissance && <p className={styles.errorMessage}>{errors.date_naissance}</p>}
           </div>
@@ -313,18 +329,14 @@ const AjouterEleveForm: React.FC = () => {
         </div>
 
         <div className={styles.formGroup}>
-          <label className={styles.label}><GraduationCap size={16} /> Classe</label>
+          <label className={styles.label}><GraduationCap size={16} /> Classe *</label>
           <select 
             className={`${styles.input} ${errors.classe ? styles.inputError : ''}`} 
             value={form.classe} 
             onChange={e => setForm({...form, classe: e.target.value})}
+            required
           >
             <option value="">-- Sélectionnez une classe --</option>
-            <optgroup label="Préscolaire">
-              <option value="Préscolaire">📚 Préscolaire</option>
-              <option value="Jardin">🌱 Jardin</option>
-              <option value="Préparatoire">✏️ Préparatoire</option>
-            </optgroup>
             <optgroup label="Fondamental (AF)">
               <option value="1ère AF">1ère AF</option>
               <option value="2ème AF">2ème AF</option>
@@ -342,11 +354,6 @@ const AjouterEleveForm: React.FC = () => {
               <option value="NS3">NS3</option>
               <option value="NS4">NS4</option>
             </optgroup>
-            {/* <optgroup label="Humanités (RH)">
-              <option value="RH1">RH1</option>
-              <option value="RH2">RH2</option>
-              <option value="RH3">RH3</option>
-            </optgroup> */}
           </select>
           {errors.classe && <p className={styles.errorMessage}>{errors.classe}</p>}
         </div>
