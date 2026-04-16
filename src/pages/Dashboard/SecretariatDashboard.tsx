@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Link, useNavigate, useParams } from 'react-router-dom';
-import { Home, Users, UserPlus, ClipboardList, Award, FileText, LogOut,  Search, Plus, Phone, Mail, MapPin, RefreshCw } from 'lucide-react';
+import { Home, Users, UserPlus, ClipboardList, Award, FileText, LogOut, Search, Plus, Phone, Mail, MapPin, RefreshCw, GraduationCap } from 'lucide-react';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import styles from '../styles/AdminDashboard.module.css';
@@ -16,17 +16,13 @@ const SecretariatDashboard: React.FC = () => {
   }, [user, navigate]);
 
   const handleLogout = () => {
-  localStorage.clear();
-  sessionStorage.clear();
-  
-  // Supprimer les items spécifiques
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-  localStorage.removeItem('refreshToken');
-  
-  // Rediriger vers la page de connexion
-  window.location.href = '/connexion';
-};
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('refreshToken');
+    window.location.href = '/connexion';
+  };
 
   return (
     <div className={styles.dashboardContainer}>
@@ -218,11 +214,19 @@ const SecretariatEleves: React.FC = () => {
   );
 };
 
-// ========== FORMULAIRE ÉLÈVE AVEC MATRICULE AUTO ==========
+// ========== FORMULAIRE ÉLÈVE AVEC CLASSE EN SELECT ==========
 const SecretariatFormulaireEleve: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  
+  // Liste des classes pour le select
+  const listeClasses = [
+    '1ère AF', '2ème AF', '3ème AF', '4ème AF', '5ème AF', '6ème AF',
+    '7ème AF', '8ème AF', '9ème AF',
+    'NS1', 'NS2', 'NS3', 'NS4'
+  ];
+
   const [form, setForm] = useState({
     nom: '', prenom: '', date_naissance: '', lieu_naissance: '',
     sexe: 'M', id_ecole: '', classe: '',
@@ -280,10 +284,23 @@ const SecretariatFormulaireEleve: React.FC = () => {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <div><label className={styles.label}>Sexe</label>
             <select className={styles.input} value={form.sexe} onChange={e => setForm({...form, sexe: e.target.value})}>
-              <option value="M">Masculin</option><option value="F">Féminin</option>
+              <option value="M">👨 Masculin</option>
+              <option value="F">👩 Féminin</option>
             </select>
           </div>
-          <div><label className={styles.label}>Classe</label><input type="text" className={styles.input} placeholder="Ex: 6ème A" value={form.classe} onChange={e => setForm({...form, classe: e.target.value})} /></div>
+          <div><label className={styles.label}><GraduationCap size={16} /> Classe *</label>
+            <select 
+              className={styles.input}
+              value={form.classe}
+              onChange={e => setForm({...form, classe: e.target.value})}
+              required
+            >
+              <option value="">-- Sélectionnez une classe --</option>
+              {listeClasses.map((classe) => (
+                <option key={classe} value={classe}>{classe}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div><label className={styles.label}><Phone size={16} /> Téléphone parent</label><input type="tel" className={styles.input} value={form.tel_parent} onChange={e => setForm({...form, tel_parent: e.target.value})} /></div>
         <div><label className={styles.label}><Mail size={16} /> Email parent</label><input type="email" className={styles.input} value={form.email_parent} onChange={e => setForm({...form, email_parent: e.target.value})} /></div>
