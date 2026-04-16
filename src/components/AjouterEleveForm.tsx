@@ -328,6 +328,7 @@ const AjouterEleveForm: React.FC = () => {
           </div>
         </div>
 
+        {/* Champ Classe - exactement comme le champ Sexe */}
         <div className={styles.formGroup}>
           <label className={styles.label}><GraduationCap size={16} /> Classe *</label>
           <select 
@@ -337,23 +338,19 @@ const AjouterEleveForm: React.FC = () => {
             required
           >
             <option value="">-- Sélectionnez une classe --</option>
-            <optgroup label="Fondamental (AF)">
-              <option value="1ère AF">1ère AF</option>
-              <option value="2ème AF">2ème AF</option>
-              <option value="3ème AF">3ème AF</option>
-              <option value="4ème AF">4ème AF</option>
-              <option value="5ème AF">5ème AF</option>
-              <option value="6ème AF">6ème AF</option>
-              <option value="7ème AF">7ème AF</option>
-              <option value="8ème AF">8ème AF</option>
-              <option value="9ème AF">9ème AF</option>
-            </optgroup>
-            <optgroup label="Secondaire (NS)">
-              <option value="NS1">NS1</option>
-              <option value="NS2">NS2</option>
-              <option value="NS3">NS3</option>
-              <option value="NS4">NS4</option>
-            </optgroup>
+            <option value="1ère AF">1ère AF</option>
+            <option value="2ème AF">2ème AF</option>
+            <option value="3ème AF">3ème AF</option>
+            <option value="4ème AF">4ème AF</option>
+            <option value="5ème AF">5ème AF</option>
+            <option value="6ème AF">6ème AF</option>
+            <option value="7ème AF">7ème AF</option>
+            <option value="8ème AF">8ème AF</option>
+            <option value="9ème AF">9ème AF</option>
+            <option value="NS1">NS1</option>
+            <option value="NS2">NS2</option>
+            <option value="NS3">NS3</option>
+            <option value="NS4">NS4</option>
           </select>
           {errors.classe && <p className={styles.errorMessage}>{errors.classe}</p>}
         </div>
