@@ -342,9 +342,12 @@ const SecretariatInscriptions: React.FC = () => {
         api.get('/examens'),
         api.get('/eleves')
       ]);
+      const elevesFiltres = elevesRes.data.filter((e: any) => e.id_ecole === user?.id_ecole);
+      console.log('Élèves chargés pour le secrétariat:', elevesFiltres.length);
+      
       setInscriptions(inscriptionsRes.data.filter((i: any) => i.id_ecole === user?.id_ecole));
       setExamens(examensRes.data.filter((e: any) => new Date(e.date_examen) > new Date()));
-      setEleves(elevesRes.data.filter((e: any) => e.id_ecole === user?.id_ecole));
+      setEleves(elevesFiltres);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -412,7 +415,14 @@ const SecretariatInscriptions: React.FC = () => {
       <div className={styles.tableContainer}>
         <table className={styles.table}>
           <thead>
-            <tr><th>Élève</th><th>Matricule</th><th>Examen</th><th>Date inscription</th><th>Statut</th><th>Actions</th></tr>
+            <tr>
+              <th>Élève</th>
+              <th>Matricule</th>
+              <th>Examen</th>
+              <th>Date inscription</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
           </thead>
           <tbody>
             {inscriptions.length === 0 ? (
@@ -492,7 +502,14 @@ const SecretariatResultats: React.FC = () => {
       <div className={styles.tableContainer}>
         <table className={styles.table}>
           <thead>
-            <tr><th>Matricule</th><th>Élève</th><th>Examen</th><th>Note /20</th><th>Mention</th><th>Statut</th></tr>
+            <tr>
+              <th>Matricule</th>
+              <th>Élève</th>
+              <th>Examen</th>
+              <th>Note /20</th>
+              <th>Mention</th>
+              <th>Statut</th>
+            </tr>
           </thead>
           <tbody>
             {loading ? (
@@ -644,7 +661,16 @@ const SecretariatTransferts: React.FC = () => {
       <div className={styles.tableContainer}>
         <table className={styles.table}>
           <thead>
-            <tr><th>Élève</th><th>Matricule</th><th>École source</th><th>École destination</th><th>Date</th><th>Motif</th><th>Statut</th><th>Actions</th></tr>
+            <tr>
+              <th>Élève</th>
+              <th>Matricule</th>
+              <th>École source</th>
+              <th>École destination</th>
+              <th>Date</th>
+              <th>Motif</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
           </thead>
           <tbody>
             {transferts.length === 0 ? (
