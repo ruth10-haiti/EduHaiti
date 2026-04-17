@@ -141,7 +141,7 @@ const BunexeExamens: React.FC = () => {
     debut_inscription: '', fin_inscription: '', date_examen: '',
     heure_examen: '09:00', duree: 120, coefficient: 1,
     lieu: '', nombre_places: 0, frais_inscription: 0,
-    type_examen: 'bac'
+    type_examen: 'bacc'
   });
 
   useEffect(() => { loadExamens(); }, []);
@@ -185,7 +185,7 @@ const BunexeExamens: React.FC = () => {
       debut_inscription: '', fin_inscription: '', date_examen: '',
       heure_examen: '09:00', duree: 120, coefficient: 1,
       lieu: '', nombre_places: 0, frais_inscription: 0,
-      type_examen: 'bac'
+      type_examen: 'bacc'
     });
     setEditingExamen(null);
     setShowForm(false);
@@ -291,54 +291,90 @@ const BunexeExamens: React.FC = () => {
   );
 };
 
-// ========== GESTION DES INSCRIPTIONS BUNEXE ==========
+//inscriptions
 const BunexeInscriptions: React.FC = () => {
   const [inscriptions, setInscriptions] = useState<any[]>([]);
   const [examens, setExamens] = useState<any[]>([]);
   const [eleves, setEleves] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [selectedExamen, setSelectedExamen] = useState('');
+  const [selectedExamen, setSelectedExamen] = useState<number | null>(null);
+  const [examenInfo, setExamenInfo] = useState<any>(null);
   const [selectedEleve, setSelectedEleve] = useState('');
   const [stats, setStats] = useState({ total: 0, validees: 0, enAttente: 0, rejetees: 0 });
 
   useEffect(() => {
-    loadData();
+    loadExamens();
+    loadAllInscriptions();
   }, []);
 
-  const loadData = async () => {
+  const loadExamens = async () => {
+    try {
+      const res = await api.get('/examens');
+      setExamens(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadAllInscriptions = async () => {
+    try {
+      const res = await api.get('/inscriptions-examens');
+      setInscriptions(res.data);
+      
+      const total = res.data.length;
+      const enAttente = res.data.filter((i: any) => i.statut === 'en_attente').length;
+      const validees = res.data.filter((i: any) => i.statut === 'validee').length;
+      const rejetees = res.data.filter((i: any) => i.statut === 'rejetee').length;
+      setStats({ total, validees, enAttente, rejetees });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const chargerElevesPourExamen = async (examenId: number) => {
+    setSelectedExamen(examenId);
+    const examen = examens.find(e => e.id === examenId);
+    setExamenInfo(examen);
     setLoading(true);
     try {
-      const [inscriptionsRes, examensRes, elevesRes] = await Promise.all([
-        api.get('/inscriptions-examens'),
-        api.get('/examens'),
-        api.get('/eleves')
+      // Récupérer les élèves non encore inscrits à cet examen
+      const [tousEleves, inscriptionsExamen] = await Promise.all([
+        api.get('/eleves'),
+        api.get(`/inscriptions-examens/examen/${examenId}`)
       ]);
       
-      setExamens(examensRes.data);
-      setEleves(elevesRes.data);
-      setInscriptions(inscriptionsRes.data);
+      const idsInscrits = inscriptionsExamen.data.map((ins: any) => ins.id_eleve);
+      const elevesNonInscrits = tousEleves.data.filter((e: any) => !idsInscrits.includes(e.id));
       
-      const total = inscriptionsRes.data.length;
-      const enAttente = inscriptionsRes.data.filter((i: any) => i.statut === 'en_attente').length;
-      const validees = inscriptionsRes.data.filter((i: any) => i.statut === 'validee').length;
-      const rejetees = inscriptionsRes.data.filter((i: any) => i.statut === 'rejetee').length;
-      setStats({ total, validees, enAttente, rejetees });
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+      setEleves(elevesNonInscrits);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleInscription = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedEleve || !selectedExamen) {
+      alert('Veuillez sélectionner un examen d\'abord, puis un élève');
+      return;
+    }
+    
     setLoading(true);
     try {
       await api.post('/inscriptions-examens', { id_eleve: selectedEleve, id_examen: selectedExamen });
       alert('✅ Inscription enregistrée avec succès');
       setShowForm(false);
       setSelectedEleve('');
-      setSelectedExamen('');
-      loadData();
-    } catch (err: any) { alert(err.response?.data?.message || '❌ Erreur'); }
+      setSelectedExamen(null);
+      setExamenInfo(null);
+      setEleves([]);
+      loadAllInscriptions();
+    } catch (err: any) { 
+      alert(err.response?.data?.message || '❌ Erreur lors de l\'inscription'); 
+    }
     finally { setLoading(false); }
   };
 
@@ -346,7 +382,7 @@ const BunexeInscriptions: React.FC = () => {
     try {
       await api.patch(`/inscriptions-examens/${id}/valider`);
       alert('✅ Inscription validée');
-      loadData();
+      loadAllInscriptions();
     } catch (err) { alert('❌ Erreur'); }
   };
 
@@ -354,68 +390,127 @@ const BunexeInscriptions: React.FC = () => {
     try {
       await api.patch(`/inscriptions-examens/${id}/rejeter`);
       alert('❌ Inscription rejetée');
-      loadData();
+      loadAllInscriptions();
     } catch (err) { alert('❌ Erreur'); }
   };
 
   const annulerInscription = async (id: number) => {
     if (window.confirm('Annuler cette inscription ?')) {
-      try { await api.delete(`/inscriptions-examens/${id}`); loadData(); alert('✅ Inscription annulée'); }
-      catch (err) { alert('❌ Erreur'); }
+      try { 
+        await api.delete(`/inscriptions-examens/${id}`); 
+        loadAllInscriptions(); 
+        alert('✅ Inscription annulée'); 
+      }
+      catch (err) { 
+        alert('❌ Erreur'); 
+      }
     }
   };
 
   const formatDate = (date: string) => date ? new Date(date).toLocaleDateString('fr-FR') : '-';
-
-  if (loading) return <div style={{ textAlign: 'center', padding: 50 }}>Chargement...</div>;
 
   return (
     <div>
       <h1 className={styles.formTitle}>📋 Gestion des inscriptions aux examens</h1>
       <p className={styles.formSubtitle}>Inscrivez des élèves, validez ou rejetez les demandes d'inscription</p>
 
-      <div style={{ marginBottom: 24 }}>
-        {!showForm ? (
-          <button onClick={() => setShowForm(true)} className={styles.primaryButton}>
-            <Plus size={18} /> Nouvelle inscription
-          </button>
-        ) : (
-          <div className={styles.formCard}>
-            <h3>➕ Inscrire un élève à un examen</h3>
-            <form onSubmit={handleInscription}>
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Élève</label>
-                <select className={styles.input} required value={selectedEleve} onChange={e => setSelectedEleve(e.target.value)}>
-                  <option value="">-- Choisir un élève --</option>
-                  {eleves.map((e: any) => (
-                    <option key={e.id} value={e.id}>
-                      {e.prenom} {e.nom} - {e.matricule_national || 'pas de matricule'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Examen</label>
-                <select className={styles.input} required value={selectedExamen} onChange={e => setSelectedExamen(e.target.value)}>
-                  <option value="">-- Choisir un examen --</option>
-                  {examens.map((e: any) => (
-                    <option key={e.id} value={e.id}>
-                      {e.nom} ({e.type_examen || 'Standard'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div style={{ display: 'flex', gap: 12 }}>
-                <button type="submit" className={styles.primaryButton} disabled={loading}>
-                  {loading ? 'Inscription...' : 'Inscrire'}
-                </button>
-                <button type="button" onClick={() => setShowForm(false)} className={styles.secondaryButton}>Annuler</button>
-              </div>
-            </form>
-          </div>
-        )}
+      {/* Sélection de l'examen (comme dans les résultats) */}
+      <div className={styles.formCard} style={{ marginBottom: 24 }}>
+        <div className={styles.formGroup}>
+          <label className={styles.label}>Sélectionner un examen</label>
+          <select 
+            className={styles.input} 
+            onChange={(e) => chargerElevesPourExamen(Number(e.target.value))}
+            value={selectedExamen || ""}
+          >
+            <option value="">-- Choisir un examen --</option>
+            {examens.map((ex: any) => (
+              <option key={ex.id} value={ex.id}>
+                {ex.nom} - {ex.annee_session} ({ex.type_examen || 'Standard'})
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
+      {/* Formulaire d'inscription qui s'affiche quand un examen est sélectionné */}
+      {selectedExamen && !showForm && (
+        <div style={{ marginBottom: 24 }}>
+          <button onClick={() => setShowForm(true)} className={styles.primaryButton}>
+            <Plus size={18} /> Nouvelle inscription pour {examenInfo?.nom}
+          </button>
+        </div>
+      )}
+
+      {showForm && selectedExamen && (
+        <div className={styles.formCard} style={{ marginBottom: 32 }}>
+          <h3>➕ Inscrire un élève à {examenInfo?.nom}</h3>
+          <form onSubmit={handleInscription}>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Élève</label>
+              <select 
+                className={styles.input} 
+                required 
+                value={selectedEleve} 
+                onChange={e => setSelectedEleve(e.target.value)}
+              >
+                <option value="">-- Choisir un élève --</option>
+                {eleves.map((e: any) => (
+                  <option key={e.id} value={e.id}>
+                    {e.prenom} {e.nom} - {e.matricule_national || 'pas de matricule'} - {e.classe || 'classe non définie'}
+                  </option>
+                ))}
+              </select>
+              {eleves.length === 0 && (
+                <small style={{ color: '#ef233c', display: 'block', marginTop: 4 }}>
+                  Aucun élève disponible pour cet examen (tous sont déjà inscrits)
+                </small>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button type="submit" className={styles.primaryButton} disabled={loading || eleves.length === 0}>
+                {loading ? 'Inscription...' : 'Inscrire'}
+              </button>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setShowForm(false);
+                  setSelectedEleve('');
+                }} 
+                className={styles.secondaryButton}
+              >
+                Annuler
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Affichage des informations de l'examen sélectionné */}
+      {selectedExamen && examenInfo && (
+        <div className={styles.formCard} style={{ marginBottom: 24, background: '#f0f4ff' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div>
+              <h3>📌 {examenInfo.nom} - Session {examenInfo.annee_session}</h3>
+              <p style={{ marginTop: 8, fontSize: 14 }}>
+                📊 Type: {examenInfo.type_examen === 'bac' ? 'Baccalauréat' : 
+                  examenInfo.type_examen === '9e AF' ? '9e Année Fondamentale' : 
+                  examenInfo.type_examen === 'NS4' ? 'Nouveau Secondaire 4' : 'Standard'}
+              </p>
+              {examenInfo.date_examen && (
+                <p style={{ fontSize: 13, color: '#6c757d' }}>
+                  📅 Date examen: {formatDate(examenInfo.date_examen)}
+                </p>
+              )}
+            </div>
+            <div>
+              <span className={styles.badgeInfo}>📝 Inscriptions: {inscriptions.filter(i => i.id_examen === selectedExamen).length}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Statistiques globales */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}><div><h3>Total</h3><div className={styles.statNumber}>{stats.total}</div></div><div className={styles.statIcon}>📋</div></div>
         <div className={styles.statCard}><div><h3>En attente</h3><div className={styles.statNumber} style={{ color: '#fca311' }}>{stats.enAttente}</div></div><div className={styles.statIcon}>⏳</div></div>
@@ -423,6 +518,7 @@ const BunexeInscriptions: React.FC = () => {
         <div className={styles.statCard}><div><h3>Rejetées</h3><div className={styles.statNumber} style={{ color: '#ef233c' }}>{stats.rejetees}</div></div><div className={styles.statIcon}>❌</div></div>
       </div>
 
+      {/* Tableau des inscriptions */}
       <div className={styles.tableContainer}>
         <table className={styles.table}>
           <thead>
@@ -533,7 +629,7 @@ const BunexeResultats: React.FC = () => {
     const noteValue = Number(note);
     
     // Baccalauréat
-    if (typeExamen === 'bac' || typeExamen === 'Baccalauréat') {
+    if (typeExamen === 'bacc' || typeExamen === 'Baccalauréat') {
       if (noteValue >= 10) return 'Admis(e)';
       if (noteValue >= 8 && noteValue < 10) return 'Ajourné(e) - Peut repasser';
       return 'Recalé(e)';
@@ -563,7 +659,7 @@ const BunexeResultats: React.FC = () => {
     const noteValue = Number(note);
     
     // Baccalauréat
-    if (typeExamen === 'bac' || typeExamen === 'Baccalauréat') {
+    if (typeExamen === 'bacc' || typeExamen === 'Baccalauréat') {
       if (noteValue >= 16) return { text: '🏅 Très Bien', class: styles.badgeSuccess };
       if (noteValue >= 13) return { text: '🎖️ Bien', class: styles.badgeSuccess };
       if (noteValue >= 10) return { text: '✅ Passable', class: styles.badgeWarning };
