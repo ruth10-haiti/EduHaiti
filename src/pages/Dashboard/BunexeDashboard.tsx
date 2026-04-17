@@ -1,53 +1,84 @@
-import React, { useEffect, useState } from 'react';
-import { Routes, Route, Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Routes, Route, Link, useNavigate} from 'react-router-dom';
 import { Home, FileText, ClipboardList, Award, Users, School, Plus, Edit2, Trash2, Calendar, Clock, MapPin, Search } from 'lucide-react';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import styles from '../styles/AdminDashboard.module.css';
 
+// Contexte pour partager les stats entre composants
+const StatsContext = React.createContext<any>(null);
+
 const BunexeDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [globalStats, setGlobalStats] = useState({ examens: 0, inscriptions: 0, resultats: 0, eleves: 0 });
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const refreshStats = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
 
   useEffect(() => {
-    if (user && user.role !== 'bunexe') {
-      navigate('/dashboard');
-    }
-  }, [user, navigate]);
+    const loadGlobalStats = async () => {
+      try {
+        const [examens, inscriptions, resultats, eleves] = await Promise.all([
+          api.get('/examens'),
+          api.get('/inscriptions-examens'),
+          api.get('/resultats-examens'),
+          api.get('/eleves')
+        ]);
+        setGlobalStats({
+          examens: examens.data.length,
+          inscriptions: inscriptions.data.length,
+          resultats: resultats.data.length,
+          eleves: eleves.data.length
+        });
+      } catch (error) {
+        console.error('Erreur chargement stats globales:', error);
+      }
+    };
+    loadGlobalStats();
+  }, [refreshTrigger]);
 
-  return (  
-    <div className={styles.dashboardContainer}>
-      <aside className={styles.sidebar}>
-        <div className={styles.logo}>
-          <h2>EduHaiti</h2>
-          <p>BUNEXE</p>
-        </div>
-        <nav className={styles.nav}>
-          <NavLinkBunexe to="/bunexe" icon={<Home size={20} />} label="Accueil" />
-          <NavLinkBunexe to="/bunexe/examens" icon={<FileText size={20} />} label="Examens" />
-          <NavLinkBunexe to="/bunexe/inscriptions" icon={<ClipboardList size={20} />} label="Inscriptions" />
-          <NavLinkBunexe to="/bunexe/resultats" icon={<Award size={20} />} label="Résultats" />
-          <NavLinkBunexe to="/bunexe/eleves" icon={<Users size={20} />} label="Élèves" />
-          <NavLinkBunexe to="/bunexe/ecoles" icon={<School size={20} />} label="Écoles" />
-        </nav>
-        <div className={styles.logoutSection}>
-          <button onClick={() => { localStorage.clear(); navigate('/connexion'); }} className={styles.logoutButton}>
-            <span>🚪</span>
-            <span>Déconnexion</span>
-          </button>
-        </div>
-      </aside>
-      <main className={styles.content}>
-        <Routes>
-          <Route path="/" element={<BunexeAccueil />} />
-          <Route path="/examens/*" element={<BunexeExamens />} />
-          <Route path="/inscriptions/*" element={<BunexeInscriptions />} />
-          <Route path="/resultats/*" element={<BunexeResultats />} />
-          <Route path="/eleves/*" element={<BunexeEleves />} />
-          <Route path="/ecoles/*" element={<BunexeEcoles />} />
-        </Routes>
-      </main>
-    </div>
+  if (user && user.role !== 'bunexe') {
+    navigate('/dashboard');
+  }
+
+  return (
+    <StatsContext.Provider value={{ refreshStats, globalStats }}>
+      <div className={styles.dashboardContainer}>
+        <aside className={styles.sidebar}>
+          <div className={styles.logo}>
+            <h2>EduHaiti</h2>
+            <p>BUNEXE</p>
+          </div>
+          <nav className={styles.nav}>
+            <NavLinkBunexe to="/bunexe" icon={<Home size={20} />} label="Accueil" />
+            <NavLinkBunexe to="/bunexe/examens" icon={<FileText size={20} />} label="Examens" />
+            <NavLinkBunexe to="/bunexe/inscriptions" icon={<ClipboardList size={20} />} label="Inscriptions" />
+            <NavLinkBunexe to="/bunexe/resultats" icon={<Award size={20} />} label="Résultats" />
+            <NavLinkBunexe to="/bunexe/eleves" icon={<Users size={20} />} label="Élèves" />
+            <NavLinkBunexe to="/bunexe/ecoles" icon={<School size={20} />} label="Écoles" />
+          </nav>
+          <div className={styles.logoutSection}>
+            <button onClick={() => { localStorage.clear(); navigate('/connexion'); }} className={styles.logoutButton}>
+              <span>🚪</span>
+              <span>Déconnexion</span>
+            </button>
+          </div>
+        </aside>
+        <main className={styles.content}>
+          <Routes>
+            <Route path="/" element={<BunexeAccueil />} />
+            <Route path="/examens/*" element={<BunexeExamens refreshStats={refreshStats} />} />
+            <Route path="/inscriptions/*" element={<BunexeInscriptions refreshStats={refreshStats} />} />
+            <Route path="/resultats/*" element={<BunexeResultats refreshStats={refreshStats} />} />
+            <Route path="/eleves/*" element={<BunexeEleves />} />
+            <Route path="/ecoles/*" element={<BunexeEcoles />} />
+          </Routes>
+        </main>
+      </div>
+    </StatsContext.Provider>
   );
 };
 
@@ -70,29 +101,12 @@ const NavLinkBunexe: React.FC<{ to: string; icon: React.ReactNode; label: string
 
 // ========== PAGE ACCUEIL BUNEXE ==========
 const BunexeAccueil: React.FC = () => {
-  const [stats, setStats] = useState({ examens: 0, inscriptions: 0, resultats: 0, eleves: 0 });
+  const { globalStats } = React.useContext(StatsContext);
+  const [stats, setStats] = useState(globalStats);
 
   useEffect(() => {
-    const loadStats = async () => {
-      try {
-        const [examens, inscriptions, resultats, eleves] = await Promise.all([
-          api.get('/examens'),
-          api.get('/inscriptions-examens'),
-          api.get('/resultats-examens'),
-          api.get('/eleves')
-        ]);
-        setStats({
-          examens: examens.data.length,
-          inscriptions: inscriptions.data.length,
-          resultats: resultats.data.length,
-          eleves: eleves.data.length
-        });
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    loadStats();
-  }, []);
+    setStats(globalStats);
+  }, [globalStats]);
 
   const cartes = [
     { title: 'Examens', value: stats.examens, icon: <FileText size={24} />, color: '#4361ee', path: '/bunexe/examens' },
@@ -131,7 +145,7 @@ const BunexeAccueil: React.FC = () => {
 };
 
 // ========== GESTION DES EXAMENS BUNEXE ==========
-const BunexeExamens: React.FC = () => {
+const BunexeExamens: React.FC<{ refreshStats: () => void }> = ({ refreshStats }) => {
   const [examens, setExamens] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -165,6 +179,7 @@ const BunexeExamens: React.FC = () => {
       } else {
         await api.post('/examens', formData);
         alert('✅ Examen créé');
+        refreshStats(); // Rafraîchir les stats après création
       }
       resetForm();
       loadExamens();
@@ -174,7 +189,12 @@ const BunexeExamens: React.FC = () => {
 
   const handleDelete = async (id: number, nom: string) => {
     if (window.confirm(`⚠️ Supprimer "${nom}" ?`)) {
-      try { await api.delete(`/examens/${id}`); loadExamens(); alert('✅ Supprimé'); }
+      try { 
+        await api.delete(`/examens/${id}`); 
+        loadExamens(); 
+        refreshStats(); // Rafraîchir les stats après suppression
+        alert('✅ Supprimé'); 
+      }
       catch (err) { alert('❌ Erreur'); }
     }
   };
@@ -292,7 +312,7 @@ const BunexeExamens: React.FC = () => {
 };
 
 // ========== GESTION DES INSCRIPTIONS BUNEXE ==========
-const BunexeInscriptions: React.FC = () => {
+const BunexeInscriptions: React.FC<{ refreshStats: () => void }> = ({ refreshStats }) => {
   const [inscriptions, setInscriptions] = useState<any[]>([]);
   const [examens, setExamens] = useState<any[]>([]);
   const [eleves, setEleves] = useState<any[]>([]);
@@ -375,7 +395,8 @@ const BunexeInscriptions: React.FC = () => {
       setSelectedExamen(null);
       setExamenInfo(null);
       setEleves([]);
-      loadAllInscriptions();
+      await loadAllInscriptions();
+      refreshStats(); // Rafraîchir les stats de l'accueil
     } catch (err: any) { 
       alert(err.response?.data?.message || '❌ Erreur lors de l\'inscription'); 
     }
@@ -386,7 +407,8 @@ const BunexeInscriptions: React.FC = () => {
     try {
       await api.put(`/inscriptions-examens/${id}`, { statut: nouveauStatut });
       alert(`✅ Inscription ${nouveauStatut === 'confirme' ? 'confirmée' : nouveauStatut === 'reussi' ? 'réussie' : 'échouée'}`);
-      loadAllInscriptions();
+      await loadAllInscriptions();
+      refreshStats(); // Rafraîchir les stats de l'accueil
     } catch (err) { 
       alert('❌ Erreur lors de la mise à jour'); 
     }
@@ -396,7 +418,8 @@ const BunexeInscriptions: React.FC = () => {
     if (window.confirm('Annuler cette inscription ?')) {
       try { 
         await api.delete(`/inscriptions-examens/${id}`); 
-        loadAllInscriptions(); 
+        await loadAllInscriptions(); 
+        refreshStats(); // Rafraîchir les stats de l'accueil
         alert('✅ Inscription annulée'); 
       }
       catch (err) { 
@@ -536,7 +559,7 @@ const BunexeInscriptions: React.FC = () => {
           </thead>
           <tbody>
             {inscriptions.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center' }}>Aucune inscription</td></tr>
+              <td><td colSpan={6} style={{ textAlign: 'center' }}>Aucune inscription</td></td>
             ) : (
               inscriptions.map((ins: any) => {
                 const statutBadge = getStatutBadge(ins.statut);
@@ -571,7 +594,7 @@ const BunexeInscriptions: React.FC = () => {
 };
 
 // ========== GESTION DES RÉSULTATS BUNEXE ==========
-const BunexeResultats: React.FC = () => {
+const BunexeResultats: React.FC<{ refreshStats: () => void }> = ({ refreshStats }) => {
   const [examens, setExamens] = useState<any[]>([]);
   const [selectedExamen, setSelectedExamen] = useState<number | null>(null);
   const [examenInfo, setExamenInfo] = useState<any>(null);
@@ -612,6 +635,7 @@ const BunexeResultats: React.FC = () => {
     try {
       await api.put(`/resultats-examens/${id}`, { note });
       alert('✅ Note enregistrée');
+      refreshStats(); // Rafraîchir les stats après saisie de note
       if (selectedExamen) chargerResultats(selectedExamen);
     } catch (err) { alert('❌ Erreur'); }
   };
@@ -622,79 +646,72 @@ const BunexeResultats: React.FC = () => {
       try {
         await api.post(`/resultats-examens/${selectedExamen}/publier`);
         alert('✅ Résultats publiés avec succès');
+        refreshStats(); // Rafraîchir les stats après publication
         if (selectedExamen) chargerResultats(selectedExamen);
       } catch (err) { alert('❌ Erreur'); }
     }
   };
 
- const getDecisionHaitienne = (note: number, typeExamen: string): string => {
-  const noteValue = Number(note);
-  
-  // Baccalauréat
-  if (typeExamen === 'bac' || typeExamen === 'Baccalauréat') {
-    if (noteValue >= 10) return 'Admis(e)';
-    if (noteValue >= 8 && noteValue < 10) return 'Ajourné(e) - Peut repasser';
-    return 'Recalé(e)';
-  }
-  
-  // 9e AF
-  if (typeExamen === '9e AF') {
-    if (noteValue >= 10) return 'Admis(e)';
-    if (noteValue >= 8 && noteValue < 10) return 'Ajourné(e)';
-    return 'Échoué(e)';
-  }
-  
-  // NS4
-  if (typeExamen === 'NS4') {
+  const getDecisionHaitienne = (note: number, typeExamen: string): string => {
+    const noteValue = Number(note);
+    
+    if (typeExamen === 'bac' || typeExamen === 'Baccalauréat') {
+      if (noteValue >= 10) return 'Admis(e)';
+      if (noteValue >= 8 && noteValue < 10) return 'Ajourné(e) - Peut repasser';
+      return 'Recalé(e)';
+    }
+    
+    if (typeExamen === '9e AF') {
+      if (noteValue >= 10) return 'Admis(e)';
+      if (noteValue >= 8 && noteValue < 10) return 'Ajourné(e)';
+      return 'Échoué(e)';
+    }
+    
+    if (typeExamen === 'NS4') {
+      if (noteValue >= 10) return 'Admis(e)';
+      if (noteValue >= 7 && noteValue < 10) return 'Ajourné(e)';
+      return 'Échoué(e)';
+    }
+    
     if (noteValue >= 10) return 'Admis(e)';
     if (noteValue >= 7 && noteValue < 10) return 'Ajourné(e)';
     return 'Échoué(e)';
-  }
-  
-  // Par défaut
-  if (noteValue >= 10) return 'Admis(e)';
-  if (noteValue >= 7 && noteValue < 10) return 'Ajourné(e)';
-  return 'Échoué(e)';
-};
+  };
 
-const getMentionHaitienne = (note: number, typeExamen: string) => {
-  const noteValue = Number(note);
-  
-  // Baccalauréat
-  if (typeExamen === 'bac' || typeExamen === 'Baccalauréat') {
-    if (noteValue >= 16) return { text: '🏅 Très Bien', class: styles.badgeSuccess };
-    if (noteValue >= 13) return { text: '🎖️ Bien', class: styles.badgeSuccess };
+  const getMentionHaitienne = (note: number, typeExamen: string) => {
+    const noteValue = Number(note);
+    
+    if (typeExamen === 'bac' || typeExamen === 'Baccalauréat') {
+      if (noteValue >= 16) return { text: '🏅 Très Bien', class: styles.badgeSuccess };
+      if (noteValue >= 13) return { text: '🎖️ Bien', class: styles.badgeSuccess };
+      if (noteValue >= 10) return { text: '✅ Passable', class: styles.badgeWarning };
+      if (noteValue >= 8) return { text: '⏳ Ajourné', class: styles.badgeWarning };
+      return { text: '❌ Recalé', class: styles.badgeDanger };
+    }
+    
+    if (typeExamen === '9e AF') {
+      if (noteValue >= 16) return { text: '🏅 Très Bien', class: styles.badgeSuccess };
+      if (noteValue >= 13) return { text: '🎖️ Bien', class: styles.badgeSuccess };
+      if (noteValue >= 10) return { text: '📘 Assez Bien', class: styles.badgeInfo };
+      if (noteValue >= 8) return { text: '⚠️ Ajourné', class: styles.badgeWarning };
+      return { text: '❌ Échoué', class: styles.badgeDanger };
+    }
+    
+    if (typeExamen === 'NS4') {
+      if (noteValue >= 16) return { text: '🏅 Très Bien', class: styles.badgeSuccess };
+      if (noteValue >= 13) return { text: '🎖️ Bien', class: styles.badgeSuccess };
+      if (noteValue >= 10) return { text: '📘 Assez Bien', class: styles.badgeInfo };
+      if (noteValue >= 7) return { text: '⚠️ Ajourné', class: styles.badgeWarning };
+      return { text: '❌ Échoué', class: styles.badgeDanger };
+    }
+    
+    if (noteValue >= 16) return { text: '🏅 Excellent', class: styles.badgeSuccess };
+    if (noteValue >= 14) return { text: '🎖️ Très Bien', class: styles.badgeSuccess };
+    if (noteValue >= 12) return { text: '📘 Bien', class: styles.badgeInfo };
     if (noteValue >= 10) return { text: '✅ Passable', class: styles.badgeWarning };
-    if (noteValue >= 8) return { text: '⏳ Ajourné', class: styles.badgeWarning };
-    return { text: '❌ Recalé', class: styles.badgeDanger };
-  }
-  
-  // 9e AF
-  if (typeExamen === '9e AF') {
-    if (noteValue >= 16) return { text: '🏅 Très Bien', class: styles.badgeSuccess };
-    if (noteValue >= 13) return { text: '🎖️ Bien', class: styles.badgeSuccess };
-    if (noteValue >= 10) return { text: '📘 Assez Bien', class: styles.badgeInfo };
-    if (noteValue >= 8) return { text: '⚠️ Ajourné', class: styles.badgeWarning };
-    return { text: '❌ Échoué', class: styles.badgeDanger };
-  }
-  
-  // NS4
-  if (typeExamen === 'NS4') {
-    if (noteValue >= 16) return { text: '🏅 Très Bien', class: styles.badgeSuccess };
-    if (noteValue >= 13) return { text: '🎖️ Bien', class: styles.badgeSuccess };
-    if (noteValue >= 10) return { text: '📘 Assez Bien', class: styles.badgeInfo };
     if (noteValue >= 7) return { text: '⚠️ Ajourné', class: styles.badgeWarning };
     return { text: '❌ Échoué', class: styles.badgeDanger };
-  }
-  
-  // Par défaut
-  if (noteValue >= 16) return { text: '🏅 Excellent', class: styles.badgeSuccess };
-  if (noteValue >= 14) return { text: '🎖️ Très Bien', class: styles.badgeSuccess };
-  if (noteValue >= 12) return { text: '📘 Bien', class: styles.badgeInfo };
-  if (noteValue >= 10) return { text: '✅ Passable', class: styles.badgeWarning };
-  if (noteValue >= 7) return { text: '⚠️ Ajourné', class: styles.badgeWarning };
-  return { text: '❌ Échoué', class: styles.badgeDanger };
-};
+  };
 
   const getBadgeColor = (decision: string) => {
     if (decision.includes('Admis')) return styles.badgeSuccess;
@@ -789,7 +806,7 @@ const getMentionHaitienne = (note: number, typeExamen: string) => {
                         </td>
                         <td><span className={mention.class}>{mention.text}</span></td>
                         <td><span className={getBadgeColor(decision)}>{decision}</span></td>
-                        <td>{res.publie ?<span className={styles.badgeSuccess}>✅ Publié</span> : <span className={styles.badgeWarning}>📝 En cours</span>}</td>
+                        <td>{res.publie ? <span className={styles.badgeSuccess}>✅ Publié</span> : <span className={styles.badgeWarning}>📝 En cours</span>}</td>
                         <td>
                           {!res.publie && (
                             <button onClick={() => saisirNote(res.id, res.note)} className={styles.primaryButton} style={{ padding: '4px 12px' }}>
@@ -890,7 +907,7 @@ const BunexeEleves: React.FC = () => {
 
 // ========== LISTE DES ÉCOLES ==========
 const BunexeEcoles: React.FC = () => {
- const [ecoles, setEcoles] = useState<any[]>([]);
+  const [ecoles, setEcoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -937,7 +954,7 @@ const BunexeEcoles: React.FC = () => {
             {loading ? (
               <tr><td colSpan={4} style={{ textAlign: 'center' }}>Chargement...</td></tr>
             ) : ecoles.length === 0 ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center' }}>Aucune école</td></tr>
+              <td><td colSpan={4} style={{ textAlign: 'center' }}>Aucune école</td></td>
             ) : (
               ecoles.map((ecole: any) => (
                 <tr key={ecole.id}>
