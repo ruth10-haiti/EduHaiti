@@ -291,7 +291,7 @@ const BunexeExamens: React.FC = () => {
   );
 };
 
-// ========== GESTION DES INSCRIPTIONS BUNEXE ==========
+// ========== GESTION DES INSCRIPTIONS BUNEXE (CORRIGÉ) ==========
 const BunexeInscriptions: React.FC = () => {
   const [inscriptions, setInscriptions] = useState<any[]>([]);
   const [examens, setExamens] = useState<any[]>([]);
@@ -309,26 +309,60 @@ const BunexeInscriptions: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
+      // Récupérer les données
       const [inscriptionsRes, examensRes, elevesRes] = await Promise.all([
         api.get('/inscriptions-examens'),
         api.get('/examens'),
         api.get('/eleves')
       ]);
-      setInscriptions(inscriptionsRes.data);
-      setExamens(examensRes.data.filter((e: any) => new Date(e.date_examen) > new Date()));
+      
+      // AFFICHAGE POUR DÉBOGAGE
+      console.log('=== DÉBOGAGE BUNEXE INSCRIPTIONS ===');
+      console.log('Examens reçus:', examensRes.data);
+      console.log('Examens filtrés (à venir):', examensRes.data.filter((e: any) => new Date(e.date_examen) > new Date()));
+      console.log('Élèves reçus:', elevesRes.data);
+      console.log('Inscriptions reçues:', inscriptionsRes.data);
+      
+      // Ne pas filtrer les examens pour l'instant (afficher tous)
+      // Filtrer seulement ceux qui ont une date dans le futur
+      const examensFiltres = examensRes.data.filter((e: any) => {
+        if (!e.date_examen) return true;
+        return new Date(e.date_examen) > new Date();
+      });
+      
+      setExamens(examensFiltres);
       setEleves(elevesRes.data);
+      setInscriptions(inscriptionsRes.data);
+      
+      console.log('=== RÉSULTAT FINAL ===');
+      console.log('Examens dans le state:', examensFiltres.length);
+      console.log('Élèves dans le state:', elevesRes.data.length);
       
       const total = inscriptionsRes.data.length;
       const enAttente = inscriptionsRes.data.filter((i: any) => i.statut === 'en_attente').length;
       const validees = inscriptionsRes.data.filter((i: any) => i.statut === 'validee').length;
       const rejetees = inscriptionsRes.data.filter((i: any) => i.statut === 'rejetee').length;
       setStats({ total, validees, enAttente, rejetees });
-    } catch (err) { console.error(err); }
+      
+      if (examensFiltres.length === 0) {
+        console.warn('⚠️ Aucun examen trouvé ! Vérifie la base de données.');
+      }
+      if (elevesRes.data.length === 0) {
+        console.warn('⚠️ Aucun élève trouvé ! Vérifie la base de données.');
+      }
+      
+    } catch (err) { 
+      console.error('Erreur loadData:', err); 
+    }
     finally { setLoading(false); }
   };
 
   const handleInscription = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedEleve || !selectedExamen) {
+      alert('Veuillez sélectionner un élève et un examen');
+      return;
+    }
     setLoading(true);
     try {
       await api.post('/inscriptions-examens', { id_eleve: selectedEleve, id_examen: selectedExamen });
@@ -337,7 +371,10 @@ const BunexeInscriptions: React.FC = () => {
       setSelectedEleve('');
       setSelectedExamen('');
       loadData();
-    } catch (err: any) { alert(err.response?.data?.message || '❌ Erreur'); }
+    } catch (err: any) { 
+      console.error('Erreur inscription:', err.response?.data);
+      alert(err.response?.data?.message || '❌ Erreur lors de l\'inscription'); 
+    }
     finally { setLoading(false); }
   };
 
@@ -368,14 +405,28 @@ const BunexeInscriptions: React.FC = () => {
 
   if (loading) return <div style={{ textAlign: 'center', padding: 50 }}>Chargement...</div>;
 
+  // Afficher un message si aucun examen ou élève n'est disponible
+  const hasNoData = examens.length === 0 || eleves.length === 0;
+
   return (
     <div>
       <h1 className={styles.formTitle}>📋 Gestion des inscriptions aux examens</h1>
       <p className={styles.formSubtitle}>Inscrivez des élèves, validez ou rejetez les demandes d'inscription</p>
 
+      {/* Message d'avertissement si pas de données */}
+      {hasNoData && (
+        <div className={styles.formCard} style={{ marginBottom: 24, background: '#fff3cd', border: '1px solid #ffc107' }}>
+          <p style={{ color: '#856404', margin: 0 }}>
+            ⚠️ {examens.length === 0 && 'Aucun examen trouvé. '}
+            {eleves.length === 0 && 'Aucun élève trouvé. '}
+            Veuillez d'abord créer des examens et des élèves.
+          </p>
+        </div>
+      )}
+
       <div style={{ marginBottom: 24 }}>
         {!showForm ? (
-          <button onClick={() => setShowForm(true)} className={styles.primaryButton}>
+          <button onClick={() => setShowForm(true)} className={styles.primaryButton} disabled={hasNoData}>
             <Plus size={18} /> Nouvelle inscription
           </button>
         ) : (
@@ -384,20 +435,50 @@ const BunexeInscriptions: React.FC = () => {
             <form onSubmit={handleInscription}>
               <div className={styles.formGroup}>
                 <label className={styles.label}>Élève</label>
-                <select className={styles.input} required value={selectedEleve} onChange={e => setSelectedEleve(e.target.value)}>
+                <select 
+                  className={styles.input} 
+                  required 
+                  value={selectedEleve} 
+                  onChange={e => setSelectedEleve(e.target.value)}
+                >
                   <option value="">-- Choisir un élève --</option>
-                  {eleves.map(e => <option key={e.id} value={e.id}>{e.prenom} {e.nom} - {e.matricule_national || 'pas de matricule'}</option>)}
+                  {eleves.map((e: any) => (
+                    <option key={e.id} value={e.id}>
+                      {e.prenom} {e.nom} - {e.matricule_national || 'pas de matricule'}
+                    </option>
+                  ))}
                 </select>
+                {eleves.length === 0 && (
+                  <small style={{ color: '#ef233c', display: 'block', marginTop: 4 }}>
+                    Aucun élève disponible. Veuillez d'abord ajouter des élèves.
+                  </small>
+                )}
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.label}>Examen</label>
-                <select className={styles.input} required value={selectedExamen} onChange={e => setSelectedExamen(e.target.value)}>
+                <select 
+                  className={styles.input} 
+                  required 
+                  value={selectedExamen} 
+                  onChange={e => setSelectedExamen(e.target.value)}
+                >
                   <option value="">-- Choisir un examen --</option>
-                  {examens.map(e => <option key={e.id} value={e.id}>{e.nom} ({e.type_examen}) - {formatDate(e.date_examen)}</option>)}
+                  {examens.map((e: any) => (
+                    <option key={e.id} value={e.id}>
+                      {e.nom} ({e.type_examen || 'Standard'}) - {formatDate(e.date_examen)}
+                    </option>
+                  ))}
                 </select>
+                {examens.length === 0 && (
+                  <small style={{ color: '#ef233c', display: 'block', marginTop: 4 }}>
+                    Aucun examen disponible. Veuillez d'abord créer des examens.
+                  </small>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 12 }}>
-                <button type="submit" className={styles.primaryButton} disabled={loading}>{loading ? 'Inscription...' : 'Inscrire'}</button>
+                <button type="submit" className={styles.primaryButton} disabled={loading}>
+                  {loading ? 'Inscription...' : 'Inscrire'}
+                </button>
                 <button type="button" onClick={() => setShowForm(false)} className={styles.secondaryButton}>Annuler</button>
               </div>
             </form>
@@ -459,7 +540,6 @@ const BunexeInscriptions: React.FC = () => {
     </div>
   );
 };
-
 // ========== GESTION DES RÉSULTATS BUNEXE - SYSTÈME OFFICIEL HAÏTIEN ==========
 const BunexeResultats: React.FC = () => {
   const [examens, setExamens] = useState<any[]>([]);
