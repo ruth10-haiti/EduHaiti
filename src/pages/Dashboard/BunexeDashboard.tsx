@@ -134,9 +134,9 @@ const BunexeAccueil: React.FC = () => {
         <h3 style={{ marginBottom: 16 }}>📋 Actions rapides</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
           <Link to="/bunexe/examens" className={styles.primaryButton} style={{ textDecoration: 'none', textAlign: 'center' }}>📝 Gérer les examens</Link>
-          <Link to="/bunexe/inscriptions" className={styles.primaryButton} style={{ textDecoration: 'none', textAlign: 'center', background: '#fca311' }}>📋 Gérer les inscriptions</Link>
-          <Link to="/bunexe/notes" className={styles.primaryButton} style={{ textDecoration: 'none', textAlign: 'center', background: '#f97316' }}>✏️ Saisir les notes</Link>
-          <Link to="/bunexe/resultats" className={styles.primaryButton} style={{ textDecoration: 'none', textAlign: 'center', background: '#06d6a0' }}>📊 Voir les résultats</Link>
+          <Link to="/bunexe/inscriptions" className={styles.primaryButton} style={{ textDecoration: 'none', textAlign: 'center', background: '#4361ee' }}>📋 Gérer les inscriptions</Link>
+          <Link to="/bunexe/notes" className={styles.primaryButton} style={{ textDecoration: 'none', textAlign: 'center', background: '#4361ee' }}>✏️ Saisir les notes</Link>
+          <Link to="/bunexe/resultats" className={styles.primaryButton} style={{ textDecoration: 'none', textAlign: 'center', background: '#4361ee' }}>📊 Voir les résultats</Link>
         </div>
       </div>
     </div>
@@ -154,7 +154,7 @@ const BunexeExamens: React.FC<{ refreshStats: () => void }> = ({ refreshStats })
     debut_inscription: '', fin_inscription: '', date_examen: '',
     heure_examen: '09:00', duree: 120, coefficient: 1,
     lieu: '', nombre_places: 0, frais_inscription: 0,
-    type_examen: 'bac'
+    type_examen: 'bacc'
   });
 
   useEffect(() => { loadExamens(); }, []);
@@ -204,7 +204,7 @@ const BunexeExamens: React.FC<{ refreshStats: () => void }> = ({ refreshStats })
       debut_inscription: '', fin_inscription: '', date_examen: '',
       heure_examen: '09:00', duree: 120, coefficient: 1,
       lieu: '', nombre_places: 0, frais_inscription: 0,
-      type_examen: 'bac'
+      type_examen: 'bacc'
     });
     setEditingExamen(null);
     setShowForm(false);
