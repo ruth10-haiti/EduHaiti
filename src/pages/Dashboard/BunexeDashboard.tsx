@@ -786,8 +786,6 @@ const BunexeResultats: React.FC<{ refreshStats: () => void }> = ({ refreshStats 
     return styles.badgeDanger;
   };
 
-  const formatDate = (date: string) => date ? new Date(date).toLocaleDateString('fr-FR') : '-';
-
   return (
     <div>
       <h1 className={styles.formTitle}>📊 Gestion des résultats - BUNEXE</h1>
