@@ -109,10 +109,10 @@ const BunexeAccueil: React.FC = () => {
 
   const cartes = [
     { title: 'Examens', value: stats.examens, icon: <FileText size={24} />, color: '#4361ee', path: '/bunexe/examens' },
-    { title: 'Inscriptions', value: stats.inscriptions, icon: <ClipboardList size={24} />, color: '#fca311', path: '/bunexe/inscriptions' },
-    { title: 'Notes', value: stats.resultats, icon: <Edit3 size={24} />, color: '#f97316', path: '/bunexe/notes' },
-    { title: 'Résultats', value: stats.resultats, icon: <Award size={24} />, color: '#06d6a0', path: '/bunexe/resultats' },
-    { title: 'Élèves', value: stats.eleves, icon: <Users size={24} />, color: '#7209b7', path: '/bunexe/eleves' }
+    { title: 'Inscriptions', value: stats.inscriptions, icon: <ClipboardList size={24} />, color: '#4361ee', path: '/bunexe/inscriptions' },
+    { title: 'Notes', value: stats.resultats, icon: <Edit3 size={24} />, color: '#4361ee', path: '/bunexe/notes' },
+    { title: 'Résultats', value: stats.resultats, icon: <Award size={24} />, color: '#4361ee', path: '/bunexe/resultats' },
+    { title: 'Élèves', value: stats.eleves, icon: <Users size={24} />, color: '#4361ee', path: '/bunexe/eleves' }
   ];
 
   return (
