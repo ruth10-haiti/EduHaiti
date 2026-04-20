@@ -309,6 +309,7 @@ const BunexeExamens: React.FC<{ refreshStats: () => void }> = ({ refreshStats })
     </div>
   );
 };
+
 // ========== GESTION DES INSCRIPTIONS ==========
 const BunexeInscriptions: React.FC<{ refreshStats: () => void }> = ({ refreshStats }) => {
   const [inscriptions, setInscriptions] = useState<any[]>([]);
@@ -585,9 +586,9 @@ const BunexeInscriptions: React.FC<{ refreshStats: () => void }> = ({ refreshSta
       </div>
     </div>
   );
-}; 
+};
 
-// ========== SAISIE DES NOTES (FORMULAIRE DÉTAILLÉ) ==========
+// ========== SAISIE DES NOTES ==========
 const BunexeSaisieNotes: React.FC<{ refreshStats: () => void }> = ({ refreshStats }) => {
   const [examens, setExamens] = useState<any[]>([]);
   const [selectedExamen, setSelectedExamen] = useState<number | null>(null);
@@ -599,7 +600,6 @@ const BunexeSaisieNotes: React.FC<{ refreshStats: () => void }> = ({ refreshStat
   const [resultatCalcul, setResultatCalcul] = useState<{ moyenne: number; mention: string; decision: string } | null>(null);
   const [serie, setSerie] = useState('');
 
-  // Matières par type d'examen
   const matieres9eAF = [
     { nom: "Français", coefficient: 1 },
     { nom: "Mathématiques", coefficient: 1 },
@@ -634,7 +634,6 @@ const BunexeSaisieNotes: React.FC<{ refreshStats: () => void }> = ({ refreshStat
     setSerie('');
     setLoading(true);
     try {
-      // Récupérer les élèves inscrits et validés pour cet examen
       const inscriptionsRes = await api.get(`/inscriptions-examens/examen/${examenId}`);
       const inscriptionsValidees = inscriptionsRes.data.filter((i: any) => 
         i.statut === 'confirme' || i.statut === 'reussi' || i.statut === 'echoue'
@@ -662,12 +661,10 @@ const BunexeSaisieNotes: React.FC<{ refreshStats: () => void }> = ({ refreshStat
     try {
       const eleveRes = await api.get(`/eleves/${eleveId}`);
       setEleve(eleveRes.data);
-      // Récupérer les notes existantes
       const resultatsRes = await api.get(`/resultats-examens/examen/${selectedExamen}`);
       const resultatExistant = resultatsRes.data.find((r: any) => r.id_eleve === parseInt(eleveId));
       const matieres = examenInfo?.type_examen === 'bac' ? matieresBAC : matieres9eAF;
       if (resultatExistant && resultatExistant.details) {
-        // Si le backend stocke les notes détaillées dans un champ JSON
         const notesSauvegardees = matieres.map(m => ({
           matiere: m.nom,
           coefficient: m.coefficient,
@@ -858,7 +855,7 @@ const BunexeSaisieNotes: React.FC<{ refreshStats: () => void }> = ({ refreshStat
   );
 };
 
-// ========== CONSULTATION DES RÉSULTATS (LECTURE SEULE) ==========
+// ========== CONSULTATION DES RÉSULTATS ==========
 const BunexeResultatsLecture: React.FC<{ refreshStats: () => void }> = ({ refreshStats }) => {
   const [examens, setExamens] = useState<any[]>([]);
   const [selectedExamen, setSelectedExamen] = useState<number | null>(null);
@@ -1033,7 +1030,7 @@ const BunexeResultatsLecture: React.FC<{ refreshStats: () => void }> = ({ refres
   );
 };
 
-// ========== LISTE DES ÉLÈVES (INCHANGÉ) ==========
+// ========== LISTE DES ÉLÈVES ==========
 const BunexeEleves: React.FC = () => {
   const [eleves, setEleves] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1082,7 +1079,7 @@ const BunexeEleves: React.FC = () => {
           </thead>
           <tbody>
             {loading ? (
-              <td><td colSpan={5} style={{ textAlign: 'center' }}>Chargement...</td></td>
+              <tr><td colSpan={5} style={{ textAlign: 'center' }}>Chargement...</td></tr>
             ) : filteredEleves.length === 0 ? (
               <td><td colSpan={5} style={{ textAlign: 'center' }}>Aucun élève</td></td>
             ) : (
@@ -1103,7 +1100,7 @@ const BunexeEleves: React.FC = () => {
   );
 };
 
-// ========== LISTE DES ÉCOLES (INCHANGÉ) ==========
+// ========== LISTE DES ÉCOLES ==========
 const BunexeEcoles: React.FC = () => {
   const [ecoles, setEcoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1133,7 +1130,7 @@ const BunexeEcoles: React.FC = () => {
           </thead>
           <tbody>
             {loading ? (
-              <td><td colSpan={4} style={{ textAlign: 'center' }}>Chargement...</td></td>
+              <tr><td colSpan={4} style={{ textAlign: 'center' }}>Chargement...</td></tr>
             ) : ecoles.length === 0 ? (
               <tr><td colSpan={4} style={{ textAlign: 'center' }}>Aucune école</td></tr>
             ) : (
