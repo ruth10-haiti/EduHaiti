@@ -786,6 +786,8 @@ const BunexeResultats: React.FC<{ refreshStats: () => void }> = ({ refreshStats 
     return styles.badgeDanger;
   };
 
+  // Suppression de la ligne `const formatDate = ...` qui n'était pas utilisée
+
   return (
     <div>
       <h1 className={styles.formTitle}>📊 Gestion des résultats - BUNEXE</h1>
@@ -996,7 +998,7 @@ const BunexeEleves: React.FC = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center' }}>Chargement...</td></tr>
+              <td><td colSpan={5} style={{ textAlign: 'center' }}>Chargement...</td></td>
             ) : filteredEleves.length === 0 ? (
               <tr><td colSpan={5} style={{ textAlign: 'center' }}>Aucun élève</td></tr>
             ) : (
@@ -1026,8 +1028,6 @@ const BunexeEcoles: React.FC = () => {
     const loadEcoles = async () => {
       try {
         const res = await api.get('/admin/ecoles');
-        // On récupère simplement les écoles sans essayer d'ajouter les responsables
-        // car cela nécessite un appel supplémentaire et peut échouer
         setEcoles(res.data);
       } catch (err) { 
         console.error('Erreur chargement écoles:', err); 
@@ -1057,17 +1057,14 @@ const BunexeEcoles: React.FC = () => {
             {loading ? (
               <tr><td colSpan={4} style={{ textAlign: 'center' }}>Chargement...</td></tr>
             ) : ecoles.length === 0 ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center' }}>Aucune école</td></tr>
+              <td><td colSpan={4} style={{ textAlign: 'center' }}>Aucune école</td></td>
             ) : (
               ecoles.map((ecole: any) => (
                 <tr key={ecole.id}>
                   <td><strong>{ecole.nom}</strong></td>
                   <td>{ecole.adresse || '-'}</td>
                   <td>{ecole.telephone || '-'}</td>
-                  <td>
-                    {/* Ici on pourrait afficher les responsables si on les avait, mais on évite l'appel supplémentaire */}
-                    <span style={{ color: '#6c757d' }}>Non assigné</span>
-                  </td>
+                  <td><span style={{ color: '#6c757d' }}>Non assigné</span></td>
                 </tr>
               ))
             )}
