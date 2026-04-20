@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Routes, Route, Link, useNavigate} from 'react-router-dom';
+import { Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { Home, FileText, ClipboardList, Award, Users, School, Plus, Edit2, Trash2, Calendar, Clock, MapPin, Search } from 'lucide-react';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -86,7 +86,6 @@ const NavLinkBunexe: React.FC<{ to: string; icon: React.ReactNode; label: string
   const navigate = useNavigate();
   const location = window.location.pathname;
   const isActive = location === to;
-  
   return (
     <button
       onClick={() => navigate(to)}
@@ -99,11 +98,10 @@ const NavLinkBunexe: React.FC<{ to: string; icon: React.ReactNode; label: string
   );
 };
 
-// ========== PAGE ACCUEIL BUNEXE ==========
+// ========== PAGE ACCUEIL ==========
 const BunexeAccueil: React.FC = () => {
   const { globalStats } = React.useContext(StatsContext);
   const [stats, setStats] = useState(globalStats);
-
   useEffect(() => {
     setStats(globalStats);
   }, [globalStats]);
@@ -119,7 +117,6 @@ const BunexeAccueil: React.FC = () => {
     <div>
       <h1 className={styles.formTitle}>📊 Bureau National des Examens (BUNEXE)</h1>
       <p className={styles.formSubtitle}>Gérez les examens nationaux, les inscriptions et les résultats</p>
-      
       <div className={styles.statsGrid}>
         {cartes.map((carte, idx) => (
           <div key={idx} className={styles.statCard} onClick={() => window.location.href = carte.path} style={{ cursor: 'pointer' }}>
@@ -131,7 +128,6 @@ const BunexeAccueil: React.FC = () => {
           </div>
         ))}
       </div>
-
       <div className={styles.formCard}>
         <h3 style={{ marginBottom: 16 }}>📋 Actions rapides</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
@@ -144,7 +140,7 @@ const BunexeAccueil: React.FC = () => {
   );
 };
 
-// ========== GESTION DES EXAMENS BUNEXE ==========
+// ========== GESTION DES EXAMENS ==========
 const BunexeExamens: React.FC<{ refreshStats: () => void }> = ({ refreshStats }) => {
   const [examens, setExamens] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -311,7 +307,7 @@ const BunexeExamens: React.FC<{ refreshStats: () => void }> = ({ refreshStats })
   );
 };
 
-// ========== GESTION DES INSCRIPTIONS BUNEXE ==========
+// ========== GESTION DES INSCRIPTIONS ==========
 const BunexeInscriptions: React.FC<{ refreshStats: () => void }> = ({ refreshStats }) => {
   const [inscriptions, setInscriptions] = useState<any[]>([]);
   const [examens, setExamens] = useState<any[]>([]);
@@ -341,7 +337,6 @@ const BunexeInscriptions: React.FC<{ refreshStats: () => void }> = ({ refreshSta
     try {
       const res = await api.get('/inscriptions-examens');
       setInscriptions(res.data);
-      
       const total = res.data.length;
       const enCours = res.data.filter((i: any) => i.statut === 'en cours').length;
       const confirme = res.data.filter((i: any) => i.statut === 'confirme').length;
@@ -363,10 +358,8 @@ const BunexeInscriptions: React.FC<{ refreshStats: () => void }> = ({ refreshSta
         api.get('/eleves'),
         api.get(`/inscriptions-examens/examen/${examenId}`)
       ]);
-      
       const idsInscrits = inscriptionsExamen.data.map((ins: any) => ins.id_eleve);
       const elevesNonInscrits = tousEleves.data.filter((e: any) => !idsInscrits.includes(e.id));
-      
       setEleves(elevesNonInscrits);
     } catch (err) {
       console.error(err);
@@ -381,7 +374,6 @@ const BunexeInscriptions: React.FC<{ refreshStats: () => void }> = ({ refreshSta
       alert('Veuillez sélectionner un examen d\'abord, puis un élève');
       return;
     }
-    
     setLoading(true);
     try {
       await api.post('/inscriptions-examens', { 
@@ -593,7 +585,7 @@ const BunexeInscriptions: React.FC<{ refreshStats: () => void }> = ({ refreshSta
   );
 };
 
-// ========== GESTION DES RÉSULTATS BUNEXE AVEC SAISIE DES NOTES ==========
+// ========== GESTION DES RÉSULTATS (CORRIGÉE) ==========
 const BunexeResultats: React.FC<{ refreshStats: () => void }> = ({ refreshStats }) => {
   const [examens, setExamens] = useState<any[]>([]);
   const [selectedExamen, setSelectedExamen] = useState<number | null>(null);
@@ -621,83 +613,63 @@ const BunexeResultats: React.FC<{ refreshStats: () => void }> = ({ refreshStats 
     setExamenInfo(examen);
     setLoading(true);
     try {
-      // Récupérer les inscriptions pour cet examen (tous statuts confirme/reussi/echoue)
       const inscriptionsRes = await api.get(`/inscriptions-examens/examen/${examenId}`);
       const inscriptionsValidees = inscriptionsRes.data.filter((i: any) => 
         i.statut === 'confirme' || i.statut === 'reussi' || i.statut === 'echoue'
       );
       
-      // Pour chaque inscription, récupérer ou créer un résultat
       const resultatsAvecInscriptions = await Promise.all(
         inscriptionsValidees.map(async (ins: any) => {
           try {
-            // Récupérer les résultats pour cet examen
             const resultatsRes = await api.get(`/resultats-examens/examen/${examenId}`);
             const resultatExistant = resultatsRes.data.find((r: any) => r.id_eleve === ins.id_eleve);
-            
             if (resultatExistant) {
-              return {
-                ...ins,
-                resultat_id: resultatExistant.id,
-                note: resultatExistant.note,
-                publie: resultatExistant.publie
-              };
+              return { ...ins, resultat_id: resultatExistant.id, note: resultatExistant.note, publie: resultatExistant.publie };
             } else {
-              // Créer un résultat vide
               const createRes = await api.post('/resultats-examens', {
                 id_eleve: ins.id_eleve,
                 id_examen: examenId,
                 note: 0
               });
-              return {
-                ...ins,
-                resultat_id: createRes.data.id,
-                note: 0,
-                publie: false
-              };
+              return { ...ins, resultat_id: createRes.data.id, note: 0, publie: false };
             }
           } catch (err) {
             console.error('Erreur récupération résultat:', err);
-            return { ...ins, note: 0, publie: false };
+            return { ...ins, resultat_id: null, note: 0, publie: false };
           }
         })
       );
       
       setInscriptions(resultatsAvecInscriptions);
       
-      // Calculer les statistiques
       const admis = resultatsAvecInscriptions.filter((r: any) => getDecisionHaitienne(r.note, examen?.type_examen || examen?.nom) === 'Admis(e)').length;
       const echoue = resultatsAvecInscriptions.filter((r: any) => getDecisionHaitienne(r.note, examen?.type_examen || examen?.nom) === 'Échoué(e)').length;
       const ajourne = resultatsAvecInscriptions.filter((r: any) => getDecisionHaitienne(r.note, examen?.type_examen || examen?.nom) === 'Ajourné(e)').length;
       const recale = resultatsAvecInscriptions.filter((r: any) => getDecisionHaitienne(r.note, examen?.type_examen || examen?.nom) === 'Recalé(e)').length;
       setStatsDecision({ admis, echoue, ajourne, recale });
-      
     } catch (err) { 
       console.error('Erreur chargement:', err); 
       alert('Erreur lors du chargement des inscriptions');
-    }
-    finally { setLoading(false); }
+    } finally { setLoading(false); }
   };
 
-  const sauvegarderNote = async (resultatId: number, note: number, eleveNom: string) => {
+  const sauvegarderNote = async (resultatId: number | null, note: number, eleveNom: string) => {
     if (note < 0 || note > 20) {
       alert('❌ La note doit être comprise entre 0 et 20');
       return;
     }
-    
+    if (!resultatId) {
+      alert('❌ Impossible de sauvegarder : identifiant du résultat manquant. Veuillez recharger la page.');
+      return;
+    }
     setSavingNote(resultatId);
     try {
       await api.put(`/resultats-examens/${resultatId}`, { note });
-      // Mettre à jour la note dans l'état local
       setInscriptions(prev => prev.map(ins => 
         ins.resultat_id === resultatId ? { ...ins, note: note } : ins
       ));
       alert(`✅ Note ${note}/20 enregistrée pour ${eleveNom}`);
-      
-      // Recalculer les statistiques
-      if (selectedExamen) {
-        chargerInscriptionsAvecResultats(selectedExamen);
-      }
+      if (selectedExamen) chargerInscriptionsAvecResultats(selectedExamen);
     } catch (err) { 
       console.error('Erreur sauvegarde:', err);
       alert('❌ Erreur lors de la sauvegarde de la note'); 
@@ -708,7 +680,7 @@ const BunexeResultats: React.FC<{ refreshStats: () => void }> = ({ refreshStats 
 
   const publierResultats = async () => {
     if (!selectedExamen) return;
-    if (window.confirm('⚠️ Êtes-vous sûr de vouloir publier tous les résultats ? Ils seront visibles par les secrétariats et les parents.')) {
+    if (window.confirm('⚠️ Êtes-vous sûr de vouloir publier tous les résultats ?')) {
       setLoading(true);
       try {
         await api.post(`/resultats-examens/${selectedExamen}/publier`);
@@ -726,7 +698,6 @@ const BunexeResultats: React.FC<{ refreshStats: () => void }> = ({ refreshStats 
 
   const getDecisionHaitienne = (note: number, typeExamen: string): string => {
     const noteValue = Number(note);
-    
     if (typeExamen === 'bac' || typeExamen === 'Baccalauréat') {
       if (noteValue >= 10) return 'Admis(e)';
       if (noteValue >= 8 && noteValue < 10) return 'Ajourné(e) - Peut repasser';
@@ -749,7 +720,6 @@ const BunexeResultats: React.FC<{ refreshStats: () => void }> = ({ refreshStats 
 
   const getMentionHaitienne = (note: number, typeExamen: string) => {
     const noteValue = Number(note);
-    
     if (typeExamen === 'bac' || typeExamen === 'Baccalauréat') {
       if (noteValue >= 16) return { text: '🏅 Très Bien', class: styles.badgeSuccess };
       if (noteValue >= 13) return { text: '🎖️ Bien', class: styles.badgeSuccess };
@@ -785,8 +755,6 @@ const BunexeResultats: React.FC<{ refreshStats: () => void }> = ({ refreshStats 
     if (decision.includes('Recalé')) return styles.badgeDanger;
     return styles.badgeDanger;
   };
-
-  // Suppression de la ligne `const formatDate = ...` qui n'était pas utilisée
 
   return (
     <div>
@@ -912,7 +880,7 @@ const BunexeResultats: React.FC<{ refreshStats: () => void }> = ({ refreshStats 
                           }
                         </td>
                         <td>
-                          {!ins.publie && (
+                          {!ins.publie && ins.resultat_id && (
                             <button 
                               onClick={() => sauvegarderNote(ins.resultat_id, ins.note, `${ins.eleve_prenom} ${ins.eleve_nom}`)}
                               className={styles.primaryButton}
@@ -1000,7 +968,7 @@ const BunexeEleves: React.FC = () => {
             {loading ? (
               <td><td colSpan={5} style={{ textAlign: 'center' }}>Chargement...</td></td>
             ) : filteredEleves.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center' }}>Aucun élève</td></tr>
+              <td><td colSpan={5} style={{ textAlign: 'center' }}>Aucun élève</td></td>
             ) : (
               filteredEleves.map((eleve: any) => (
                 <tr key={eleve.id}>
@@ -1019,7 +987,7 @@ const BunexeEleves: React.FC = () => {
   );
 };
 
-// ========== LISTE DES ÉCOLES ==========
+// ========== LISTE DES ÉCOLES (CORRIGÉE) ==========
 const BunexeEcoles: React.FC = () => {
   const [ecoles, setEcoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1030,7 +998,7 @@ const BunexeEcoles: React.FC = () => {
         const res = await api.get('/admin/ecoles');
         setEcoles(res.data);
       } catch (err) { 
-        console.error('Erreur chargement écoles:', err); 
+        console.error('Erreur chargement écoles:', err);
       } finally { 
         setLoading(false); 
       }
@@ -1042,16 +1010,10 @@ const BunexeEcoles: React.FC = () => {
     <div>
       <h1 className={styles.formTitle}>🏫 Gestion des écoles</h1>
       <p className={styles.formSubtitle}>Consultez les écoles et leurs responsables (Secrétariat)</p>
-
       <div className={styles.tableContainer}>
         <table className={styles.table}>
           <thead>
-            <tr>
-              <th>Nom de l'école</th>
-              <th>Adresse</th>
-              <th>Téléphone</th>
-              <th>Responsable(s)</th>
-            </tr>
+            <tr><th>Nom de l'école</th><th>Adresse</th><th>Téléphone</th><th>Responsable(s)</th></tr>
           </thead>
           <tbody>
             {loading ? (
