@@ -320,143 +320,281 @@ const SecretariatFormulaireEleve: React.FC = () => {
   );
 };
 
-// ========== INSCRIPTIONS SECRÉTARIAT (CORRIGÉ) ==========
+// ========== INSCRIPTIONS SECRÉTARIAT (REFACTORÉ COMME BUNEXE) ==========
 const SecretariatInscriptions: React.FC = () => {
   const [inscriptions, setInscriptions] = useState<any[]>([]);
   const [examens, setExamens] = useState<any[]>([]);
-  const [eleves, setEleves] = useState<any[]>([]);
+  const [elevesDisponibles, setElevesDisponibles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [selectedExamen, setSelectedExamen] = useState('');
+  const [selectedExamen, setSelectedExamen] = useState<number | null>(null);
+  const [examenInfo, setExamenInfo] = useState<any>(null);
   const [selectedEleve, setSelectedEleve] = useState('');
   const { user } = useAuth();
 
-  const loadData = async () => {
-    setLoading(true);
+  // Charger tous les examens
+  const loadExamens = async () => {
     try {
-      const [inscriptionsRes, examensRes, elevesRes] = await Promise.all([
-        api.get('/inscriptions-examens'),
-        api.get('/examens'),
-        api.get('/eleves')
-      ]);
-      const ecoleId = Number(user?.id_ecole);
-      if (isNaN(ecoleId)) {
-        console.error('ID école invalide pour le secrétariat');
-        setLoading(false);
-        return;
-      }
-      // Filtrage des élèves par id_ecole (avec conversion en nombre)
-      const elevesFiltres = elevesRes.data.filter((e: any) => Number(e.id_ecole) === ecoleId);
-      console.log(`Élèves trouvés pour l'école ${ecoleId} : ${elevesFiltres.length}`);
-      setEleves(elevesFiltres);
-      setInscriptions(inscriptionsRes.data.filter((i: any) => Number(i.id_ecole) === ecoleId));
-      setExamens(examensRes.data.filter((e: any) => new Date(e.date_examen) > new Date()));
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+      const res = await api.get('/examens');
+      setExamens(res.data);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // Charger toutes les inscriptions de l'école
+  const loadInscriptions = async () => {
+    try {
+      const res = await api.get('/inscriptions-examens');
+      const ecoleId = Number(user?.id_ecole);
+      const inscriptionsEcole = res.data.filter((i: any) => Number(i.id_ecole) === ecoleId);
+      setInscriptions(inscriptionsEcole);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Charger les élèves non encore inscrits pour l'examen sélectionné
+  const chargerElevesPourExamen = async (examenId: number) => {
+    setSelectedExamen(examenId);
+    const examen = examens.find(e => e.id === examenId);
+    setExamenInfo(examen);
+    setLoading(true);
+    try {
+      // Récupérer tous les élèves de l'école
+      const elevesRes = await api.get('/eleves');
+      const ecoleId = Number(user?.id_ecole);
+      const elevesEcole = elevesRes.data.filter((e: any) => Number(e.id_ecole) === ecoleId);
+      
+      // Récupérer les inscriptions pour cet examen
+      const inscriptionsExamenRes = await api.get(`/inscriptions-examens/examen/${examenId}`);
+      const idsInscrits = inscriptionsExamenRes.data.map((ins: any) => ins.id_eleve);
+      
+      // Filtrer les élèves non inscrits
+      const elevesNonInscrits = elevesEcole.filter((e: any) => !idsInscrits.includes(e.id));
+      setElevesDisponibles(elevesNonInscrits);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Réinitialiser après une inscription
+  const resetForm = () => {
+    setShowForm(false);
+    setSelectedEleve('');
+    if (selectedExamen) {
+      chargerElevesPourExamen(selectedExamen);
+    }
+    loadInscriptions();
+  };
 
   const handleInscription = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedEleve || !selectedExamen) {
+      alert('Veuillez sélectionner un élève');
+      return;
+    }
     setLoading(true);
     try {
-      await api.post('/inscriptions-examens', { id_eleve: selectedEleve, id_examen: selectedExamen });
+      await api.post('/inscriptions-examens', {
+        id_eleve: selectedEleve,
+        id_examen: selectedExamen,
+        statut: 'en cours'  // même statut que BUNEXE
+      });
       alert('✅ Inscription enregistrée avec succès');
-      setShowForm(false);
-      setSelectedEleve('');
-      setSelectedExamen('');
-      loadData();
-    } catch (err: any) { alert(err.response?.data?.message || '❌ Erreur'); }
-    finally { setLoading(false); }
+      resetForm();
+    } catch (err: any) {
+      alert(err.response?.data?.message || '❌ Erreur lors de l\'inscription');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const annulerInscription = async (id: number) => {
     if (window.confirm('Annuler cette inscription ?')) {
-      try { await api.delete(`/inscriptions-examens/${id}`); loadData(); alert('✅ Inscription annulée'); }
-      catch (err) { alert('❌ Erreur'); }
+      try {
+        await api.delete(`/inscriptions-examens/${id}`);
+        alert('✅ Inscription annulée');
+        loadInscriptions();
+        if (selectedExamen) chargerElevesPourExamen(selectedExamen);
+      } catch (err) {
+        alert('❌ Erreur');
+      }
     }
   };
 
   const formatDate = (date: string) => date ? new Date(date).toLocaleDateString('fr-FR') : '-';
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 50 }}>Chargement...</div>;
+  const getStatutBadge = (statut: string) => {
+    switch(statut) {
+      case 'confirme': return { text: '✅ Confirmée', class: styles.badgeSuccess };
+      case 'reussi': return { text: '🎉 Réussi', class: styles.badgeSuccess };
+      case 'echoue': return { text: '❌ Échoué', class: styles.badgeDanger };
+      default: return { text: '⏳ En attente', class: styles.badgeWarning };
+    }
+  };
+
+  useEffect(() => {
+    const init = async () => {
+      await loadExamens();
+      await loadInscriptions();
+    };
+    init();
+  }, []);
+
+  // Filtrer les inscriptions pour l'examen sélectionné
+  const inscriptionsFiltrees = selectedExamen
+    ? inscriptions.filter(i => i.id_examen === selectedExamen)
+    : [];
 
   return (
     <div>
       <h1 className={styles.formTitle}>📋 Gestion des inscriptions aux examens</h1>
       <p className={styles.formSubtitle}>Inscrivez vos élèves aux examens nationaux</p>
 
-      <div style={{ marginBottom: 24 }}>
-        {!showForm ? (
-          <button onClick={() => setShowForm(true)} className={styles.primaryButton}><Plus size={18} /> Nouvelle inscription</button>
-        ) : (
-          <div className={styles.formCard}>
-            <h3>➕ Inscrire un élève à un examen</h3>
-            <form onSubmit={handleInscription}>
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Élève</label>
-                <select className={styles.input} required value={selectedEleve} onChange={e => setSelectedEleve(e.target.value)}>
-                  <option value="">-- Choisir un élève --</option>
-                  {eleves.map((e: any) => <option key={e.id} value={e.id}>{e.prenom} {e.nom} - {e.matricule_national || 'pas de matricule'}</option>)}
-                </select>
-              </div>
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Examen</label>
-                <select className={styles.input} required value={selectedExamen} onChange={e => setSelectedExamen(e.target.value)}>
-                  <option value="">-- Choisir un examen --</option>
-                  {examens.map((e: any) => <option key={e.id} value={e.id}>{e.nom} - {formatDate(e.date_examen)}</option>)}
-                </select>
-              </div>
-              <div style={{ display: 'flex', gap: 12 }}>
-                <button type="submit" className={styles.primaryButton} disabled={loading}>{loading ? 'Inscription...' : 'Inscrire'}</button>
-                <button type="button" onClick={() => setShowForm(false)} className={styles.secondaryButton}>Annuler</button>
-              </div>
-            </form>
-          </div>
-        )}
+      {/* Sélecteur d'examen */}
+      <div className={styles.formCard} style={{ marginBottom: 24 }}>
+        <div className={styles.formGroup}>
+          <label className={styles.label}>Sélectionner un examen</label>
+          <select
+            className={styles.input}
+            onChange={(e) => chargerElevesPourExamen(Number(e.target.value))}
+            value={selectedExamen || ""}
+          >
+            <option value="">-- Choisir un examen --</option>
+            {examens.map((ex: any) => (
+              <option key={ex.id} value={ex.id}>
+                {ex.nom} - {ex.annee_session} ({ex.type_examen || 'Standard'})
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <div className={styles.tableContainer}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Élève</th>
-              <th>Matricule</th>
-              <th>Examen</th>
-              <th>Date inscription</th>
-              <th>Statut</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {inscriptions.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center' }}>Aucune inscription</td></tr>
-            ) : (
-              inscriptions.map((ins: any) => (
-                <tr key={ins.id}>
-                  <td><strong>{ins.eleve_prenom} {ins.eleve_nom}</strong></td>
-                  <td><code>{ins.matricule_national || '-'}</code></td>
-                  <td>{ins.examen_nom}</td>
-                  <td>{formatDate(ins.date_inscription)}</td>
-                  <td>
-                    <span className={`${styles.badge} ${ins.statut === 'validee' ? styles.badgeSuccess : ins.statut === 'rejetee' ? styles.badgeDanger : styles.badgeWarning}`}>
-                      {ins.statut === 'validee' ? '✅ Validée' : ins.statut === 'rejetee' ? '❌ Rejetée' : '⏳ En attente'}
-                    </span>
-                   </td>
-                  <td>
-                    {ins.statut === 'en_attente' && (
-                      <button onClick={() => annulerInscription(ins.id)} className={styles.secondaryButton} style={{ padding: '4px 12px', background: '#ef233c', color: 'white', border: 'none' }}>Annuler</button>
-                    )}
-                   </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* Bouton nouvelle inscription */}
+      {selectedExamen && !showForm && (
+        <div style={{ marginBottom: 24 }}>
+          <button onClick={() => setShowForm(true)} className={styles.primaryButton}>
+            <Plus size={18} /> Nouvelle inscription pour {examenInfo?.nom}
+          </button>
+        </div>
+      )}
+
+      {/* Formulaire d'inscription */}
+      {showForm && selectedExamen && (
+        <div className={styles.formCard} style={{ marginBottom: 32 }}>
+          <h3>➕ Inscrire un élève à {examenInfo?.nom}</h3>
+          <form onSubmit={handleInscription}>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Élève</label>
+              <select
+                className={styles.input}
+                required
+                value={selectedEleve}
+                onChange={e => setSelectedEleve(e.target.value)}
+              >
+                <option value="">-- Choisir un élève --</option>
+                {elevesDisponibles.map((e: any) => (
+                  <option key={e.id} value={e.id}>
+                    {e.prenom} {e.nom} - {e.matricule_national || 'pas de matricule'} - {e.classe || 'classe non définie'}
+                  </option>
+                ))}
+              </select>
+              {elevesDisponibles.length === 0 && (
+                <small style={{ color: '#ef233c', display: 'block', marginTop: 4 }}>
+                  Aucun élève disponible pour cet examen (tous sont déjà inscrits)
+                </small>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button type="submit" className={styles.primaryButton} disabled={loading || elevesDisponibles.length === 0}>
+                {loading ? 'Inscription...' : 'Inscrire'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setSelectedEleve('');
+                }}
+                className={styles.secondaryButton}
+              >
+                Annuler
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Informations sur l'examen sélectionné */}
+      {selectedExamen && examenInfo && (
+        <div className={styles.formCard} style={{ marginBottom: 24, background: '#f0f4ff' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div>
+              <h3>📌 {examenInfo.nom} - Session {examenInfo.annee_session}</h3>
+              <p style={{ marginTop: 8, fontSize: 14 }}>
+                📊 Type: {examenInfo.type_examen === 'bac' ? 'Baccalauréat' : 
+                  examenInfo.type_examen === '9e AF' ? '9e Année Fondamentale' : 
+                  examenInfo.type_examen === 'NS4' ? 'Nouveau Secondaire 4' : 'Standard'}
+              </p>
+              {examenInfo.date_examen && (
+                <p style={{ fontSize: 13, color: '#6c757d' }}>
+                  📅 Date examen: {formatDate(examenInfo.date_examen)}
+                </p>
+              )}
+            </div>
+            <div>
+              <span className={styles.badgeInfo}>📝 Inscriptions: {inscriptionsFiltrees.length}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tableau des inscriptions pour l'examen sélectionné */}
+      {selectedExamen && (
+        <div className={styles.tableContainer}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Élève</th>
+                <th>Matricule</th>
+                <th>Date inscription</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {inscriptionsFiltrees.length === 0 ? (
+                <tr><td colSpan={5} style={{ textAlign: 'center' }}>Aucune inscription pour cet examen</td></tr>
+              ) : (
+                inscriptionsFiltrees.map((ins: any) => {
+                  const statutBadge = getStatutBadge(ins.statut);
+                  return (
+                    <tr key={ins.id}>
+                      <td><strong>{ins.eleve_prenom} {ins.eleve_nom}</strong></td>
+                      <td><code>{ins.matricule_national || '-'}</code></td>
+                      <td>{formatDate(ins.date_inscription)}</td>
+                      <td><span className={statutBadge.class}>{statutBadge.text}</span></td>
+                      <td>
+                        {ins.statut === 'en cours' && (
+                          <button
+                            onClick={() => annulerInscription(ins.id)}
+                            className={styles.secondaryButton}
+                            style={{ padding: '4px 12px', background: '#ef233c', color: 'white', border: 'none' }}
+                          >
+                            Annuler
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
@@ -471,16 +609,13 @@ const SecretariatResultats: React.FC = () => {
   useEffect(() => {
     const loadResultats = async () => {
       try {
-        // Récupérer tous les résultats et tous les élèves
         const [resultatsRes, elevesRes] = await Promise.all([
           api.get('/resultats-examens'),
           api.get('/eleves')
         ]);
         const ecoleId = Number(user?.id_ecole);
-        // Récupérer la liste des IDs des élèves de cette école
         const elevesEcole = elevesRes.data.filter((e: any) => Number(e.id_ecole) === ecoleId);
         const idsElevesEcole = new Set(elevesEcole.map((e: any) => e.id));
-        // Ne garder que les résultats dont l'élève appartient à l'école
         const resultatsFiltres = resultatsRes.data.filter((r: any) => idsElevesEcole.has(r.id_eleve));
         setResultats(resultatsFiltres);
       } catch (err) { console.error(err); }
@@ -715,7 +850,7 @@ const SecretariatTransferts: React.FC = () => {
                           <button onClick={() => refuserTransfert(transfert.id)} className={styles.secondaryButton} style={{ padding: '4px 12px', background: '#ef233c', color: 'white', border: 'none' }}>❌ Refuser</button>
                         </>
                       )}
-                     </td>
+                    </td>
                   </tr>
                 );
               })
