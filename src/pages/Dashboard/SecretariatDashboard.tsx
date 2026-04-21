@@ -94,11 +94,12 @@ const SecretariatHome: React.FC = () => {
           api.get('/resultats-examens'),
           api.get('/transferts')
         ]);
+        const ecoleId = Number(user?.id_ecole);
         setStats({
-          eleves: eleves.data.filter((e: any) => e.id_ecole === user?.id_ecole).length,
-          inscriptions: inscriptions.data.filter((i: any) => i.id_ecole === user?.id_ecole).length,
-          resultats: resultats.data.filter((r: any) => r.id_ecole === user?.id_ecole).length,
-          transferts: transferts.data.filter((t: any) => t.id_ecole_source === user?.id_ecole || t.id_ecole_destination === user?.id_ecole).length
+          eleves: eleves.data.filter((e: any) => Number(e.id_ecole) === ecoleId).length,
+          inscriptions: inscriptions.data.filter((i: any) => Number(i.id_ecole) === ecoleId).length,
+          resultats: resultats.data.filter((r: any) => r.id_ecole === ecoleId).length,
+          transferts: transferts.data.filter((t: any) => Number(t.id_ecole_source) === ecoleId || Number(t.id_ecole_destination) === ecoleId).length
         });
       } catch (error) { console.error(error); }
     };
@@ -150,7 +151,8 @@ const SecretariatEleves: React.FC = () => {
     const loadEleves = async () => {
       try {
         const res = await api.get('/eleves');
-        const elevesFiltres = res.data.filter((e: any) => e.id_ecole === user?.id_ecole);
+        const ecoleId = Number(user?.id_ecole);
+        const elevesFiltres = res.data.filter((e: any) => Number(e.id_ecole) === ecoleId);
         setEleves(elevesFiltres);
       } catch (err) { console.error(err); }
       finally { setLoading(false); }
@@ -203,7 +205,7 @@ const SecretariatEleves: React.FC = () => {
                   <td>{eleve.tel_parent || '-'}</td>
                   <td>
                     <Link to={`/secretariat/eleves/${eleve.id}/modifier`} className={styles.primaryButton} style={{ padding: '4px 12px', textDecoration: 'none' }}>✏️ Modifier</Link>
-                  </td>
+                   </td>
                 </tr>
               ))
             )}
@@ -220,7 +222,6 @@ const SecretariatFormulaireEleve: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   
-  // Liste des classes pour le select
   const listeClasses = [
     '1ère AF', '2ème AF', '3ème AF', '4ème AF', '5ème AF', '6ème AF',
     '7ème AF', '8ème AF', '9ème AF',
@@ -319,7 +320,7 @@ const SecretariatFormulaireEleve: React.FC = () => {
   );
 };
 
-// ========== INSCRIPTIONS SECRÉTARIAT ==========
+// ========== INSCRIPTIONS SECRÉTARIAT (CORRIGÉ) ==========
 const SecretariatInscriptions: React.FC = () => {
   const [inscriptions, setInscriptions] = useState<any[]>([]);
   const [examens, setExamens] = useState<any[]>([]);
@@ -330,10 +331,6 @@ const SecretariatInscriptions: React.FC = () => {
   const [selectedEleve, setSelectedEleve] = useState('');
   const { user } = useAuth();
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const loadData = async () => {
     setLoading(true);
     try {
@@ -342,15 +339,25 @@ const SecretariatInscriptions: React.FC = () => {
         api.get('/examens'),
         api.get('/eleves')
       ]);
-      const elevesFiltres = elevesRes.data.filter((e: any) => e.id_ecole === user?.id_ecole);
-      console.log('Élèves chargés pour le secrétariat:', elevesFiltres.length);
-      
-      setInscriptions(inscriptionsRes.data.filter((i: any) => i.id_ecole === user?.id_ecole));
-      setExamens(examensRes.data.filter((e: any) => new Date(e.date_examen) > new Date()));
+      const ecoleId = Number(user?.id_ecole);
+      if (isNaN(ecoleId)) {
+        console.error('ID école invalide pour le secrétariat');
+        setLoading(false);
+        return;
+      }
+      // Filtrage des élèves par id_ecole (avec conversion en nombre)
+      const elevesFiltres = elevesRes.data.filter((e: any) => Number(e.id_ecole) === ecoleId);
+      console.log(`Élèves trouvés pour l'école ${ecoleId} : ${elevesFiltres.length}`);
       setEleves(elevesFiltres);
+      setInscriptions(inscriptionsRes.data.filter((i: any) => Number(i.id_ecole) === ecoleId));
+      setExamens(examensRes.data.filter((e: any) => new Date(e.date_examen) > new Date()));
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleInscription = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -438,12 +445,12 @@ const SecretariatInscriptions: React.FC = () => {
                     <span className={`${styles.badge} ${ins.statut === 'validee' ? styles.badgeSuccess : ins.statut === 'rejetee' ? styles.badgeDanger : styles.badgeWarning}`}>
                       {ins.statut === 'validee' ? '✅ Validée' : ins.statut === 'rejetee' ? '❌ Rejetée' : '⏳ En attente'}
                     </span>
-                  </td>
+                   </td>
                   <td>
                     {ins.statut === 'en_attente' && (
                       <button onClick={() => annulerInscription(ins.id)} className={styles.secondaryButton} style={{ padding: '4px 12px', background: '#ef233c', color: 'white', border: 'none' }}>Annuler</button>
                     )}
-                  </td>
+                   </td>
                 </tr>
               ))
             )}
@@ -454,7 +461,7 @@ const SecretariatInscriptions: React.FC = () => {
   );
 };
 
-// ========== RÉSULTATS SECRÉTARIAT ==========
+// ========== RÉSULTATS SECRÉTARIAT (CORRIGÉ : filtrage par élèves de l'école) ==========
 const SecretariatResultats: React.FC = () => {
   const [resultats, setResultats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -464,8 +471,17 @@ const SecretariatResultats: React.FC = () => {
   useEffect(() => {
     const loadResultats = async () => {
       try {
-        const res = await api.get('/resultats-examens');
-        const resultatsFiltres = res.data.filter((r: any) => r.id_ecole === user?.id_ecole);
+        // Récupérer tous les résultats et tous les élèves
+        const [resultatsRes, elevesRes] = await Promise.all([
+          api.get('/resultats-examens'),
+          api.get('/eleves')
+        ]);
+        const ecoleId = Number(user?.id_ecole);
+        // Récupérer la liste des IDs des élèves de cette école
+        const elevesEcole = elevesRes.data.filter((e: any) => Number(e.id_ecole) === ecoleId);
+        const idsElevesEcole = new Set(elevesEcole.map((e: any) => e.id));
+        // Ne garder que les résultats dont l'élève appartient à l'école
+        const resultatsFiltres = resultatsRes.data.filter((r: any) => idsElevesEcole.has(r.id_eleve));
         setResultats(resultatsFiltres);
       } catch (err) { console.error(err); }
       finally { setLoading(false); }
@@ -562,9 +578,10 @@ const SecretariatTransferts: React.FC = () => {
         api.get('/eleves'),
         api.get('/admin/ecoles')
       ]);
-      setTransferts(transfertsRes.data.filter((t: any) => t.id_ecole_source === user?.id_ecole || t.id_ecole_destination === user?.id_ecole));
-      setEleves(elevesRes.data.filter((e: any) => e.id_ecole === user?.id_ecole));
-      setEcoles(ecolesRes.data.filter((e: any) => e.id !== user?.id_ecole));
+      const ecoleId = Number(user?.id_ecole);
+      setTransferts(transfertsRes.data.filter((t: any) => Number(t.id_ecole_source) === ecoleId || Number(t.id_ecole_destination) === ecoleId));
+      setEleves(elevesRes.data.filter((e: any) => Number(e.id_ecole) === ecoleId));
+      setEcoles(ecolesRes.data.filter((e: any) => e.id !== ecoleId));
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -678,7 +695,7 @@ const SecretariatTransferts: React.FC = () => {
             ) : (
               transferts.map((transfert: any) => {
                 const statut = getStatutBadge(transfert.statut);
-                const isSource = transfert.id_ecole_source === user?.id_ecole;
+                const isSource = Number(transfert.id_ecole_source) === Number(user?.id_ecole);
                 return (
                   <tr key={transfert.id}>
                     <td><strong>{transfert.eleve_prenom} {transfert.eleve_nom}</strong></td>
@@ -698,7 +715,7 @@ const SecretariatTransferts: React.FC = () => {
                           <button onClick={() => refuserTransfert(transfert.id)} className={styles.secondaryButton} style={{ padding: '4px 12px', background: '#ef233c', color: 'white', border: 'none' }}>❌ Refuser</button>
                         </>
                       )}
-                    </td>
+                     </td>
                   </tr>
                 );
               })
