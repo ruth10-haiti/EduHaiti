@@ -320,10 +320,11 @@ const SecretariatFormulaireEleve: React.FC = () => {
   );
 };
 
-// ========== INSCRIPTIONS SECRÉTARIAT (REFACTORÉ COMME BUNEXE) ==========
+// ========== INSCRIPTIONS SECRÉTARIAT (VERSION ROBUSTE) ==========
 const SecretariatInscriptions: React.FC = () => {
   const [inscriptions, setInscriptions] = useState<any[]>([]);
   const [examens, setExamens] = useState<any[]>([]);
+  const [elevesDeLEcole, setElevesDeLEcole] = useState<any[]>([]); // tous les élèves de l'école
   const [elevesDisponibles, setElevesDisponibles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -332,64 +333,76 @@ const SecretariatInscriptions: React.FC = () => {
   const [selectedEleve, setSelectedEleve] = useState('');
   const { user } = useAuth();
 
-  // Charger tous les examens
-  const loadExamens = async () => {
+  // Charger les examens et les élèves de l'école (une seule fois)
+  const loadInitialData = async () => {
+    if (!user?.id_ecole) {
+      console.warn("Aucun id_ecole pour l'utilisateur");
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     try {
-      const res = await api.get('/examens');
-      setExamens(res.data);
+      const [examensRes, elevesRes] = await Promise.all([
+        api.get('/examens'),
+        api.get('/eleves')
+      ]);
+      const ecoleId = Number(user.id_ecole);
+      const elevesFiltres = elevesRes.data.filter((e: any) => Number(e.id_ecole) === ecoleId);
+      console.log(`Élèves de l'école ${ecoleId} : ${elevesFiltres.length}`);
+      setElevesDeLEcole(elevesFiltres);
+      setExamens(examensRes.data);
     } catch (err) {
-      console.error(err);
+      console.error("Erreur chargement initial:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Charger toutes les inscriptions de l'école
+  // Recharger les inscriptions (pour l'examen sélectionné)
   const loadInscriptions = async () => {
+    if (!selectedExamen) return;
     try {
       const res = await api.get('/inscriptions-examens');
       const ecoleId = Number(user?.id_ecole);
-      const inscriptionsEcole = res.data.filter((i: any) => Number(i.id_ecole) === ecoleId);
+      const toutesInscriptions = res.data;
+      const inscriptionsEcole = toutesInscriptions.filter((i: any) => Number(i.id_ecole) === ecoleId);
       setInscriptions(inscriptionsEcole);
     } catch (err) {
       console.error(err);
     }
   };
 
-  // Charger les élèves non encore inscrits pour l'examen sélectionné
-  const chargerElevesPourExamen = async (examenId: number) => {
-    setSelectedExamen(examenId);
-    const examen = examens.find(e => e.id === examenId);
-    setExamenInfo(examen);
+  // Mettre à jour la liste des élèves disponibles pour l'examen choisi
+  const updateElevesDisponibles = async () => {
+    if (!selectedExamen) return;
     setLoading(true);
     try {
-      // Récupérer tous les élèves de l'école
-      const elevesRes = await api.get('/eleves');
-      const ecoleId = Number(user?.id_ecole);
-      const elevesEcole = elevesRes.data.filter((e: any) => Number(e.id_ecole) === ecoleId);
-      
-      // Récupérer les inscriptions pour cet examen
-      const inscriptionsExamenRes = await api.get(`/inscriptions-examens/examen/${examenId}`);
+      // Récupérer les IDs des élèves déjà inscrits à cet examen
+      const inscriptionsExamenRes = await api.get(`/inscriptions-examens/examen/${selectedExamen}`);
       const idsInscrits = inscriptionsExamenRes.data.map((ins: any) => ins.id_eleve);
-      
-      // Filtrer les élèves non inscrits
-      const elevesNonInscrits = elevesEcole.filter((e: any) => !idsInscrits.includes(e.id));
-      setElevesDisponibles(elevesNonInscrits);
+      // Filtrer les élèves de l'école non inscrits
+      const disponibles = elevesDeLEcole.filter((e: any) => !idsInscrits.includes(e.id));
+      setElevesDisponibles(disponibles);
     } catch (err) {
-      console.error(err);
+      console.error("Erreur chargement élèves disponibles:", err);
+      setElevesDisponibles([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Réinitialiser après une inscription
-  const resetForm = () => {
-    setShowForm(false);
+  // Quand un examen est sélectionné
+  const handleExamenChange = async (examenId: number) => {
+    setSelectedExamen(examenId);
+    const examen = examens.find(e => e.id === examenId);
+    setExamenInfo(examen);
+    setShowForm(false);        // fermer le formulaire si ouvert
     setSelectedEleve('');
-    if (selectedExamen) {
-      chargerElevesPourExamen(selectedExamen);
-    }
-    loadInscriptions();
+    await loadInscriptions();
+    await updateElevesDisponibles();
   };
 
+  // Inscription d'un élève
   const handleInscription = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedEleve || !selectedExamen) {
@@ -401,66 +414,80 @@ const SecretariatInscriptions: React.FC = () => {
       await api.post('/inscriptions-examens', {
         id_eleve: selectedEleve,
         id_examen: selectedExamen,
-        statut: 'en cours'  // même statut que BUNEXE
+        statut: 'en cours'
       });
-      alert('✅ Inscription enregistrée avec succès');
-      resetForm();
+      alert('✅ Inscription enregistrée');
+      setShowForm(false);
+      setSelectedEleve('');
+      await loadInscriptions();
+      await updateElevesDisponibles();
     } catch (err: any) {
-      alert(err.response?.data?.message || '❌ Erreur lors de l\'inscription');
+      alert(err.response?.data?.message || '❌ Erreur');
     } finally {
       setLoading(false);
     }
   };
 
+  // Annuler une inscription
   const annulerInscription = async (id: number) => {
-    if (window.confirm('Annuler cette inscription ?')) {
-      try {
-        await api.delete(`/inscriptions-examens/${id}`);
-        alert('✅ Inscription annulée');
-        loadInscriptions();
-        if (selectedExamen) chargerElevesPourExamen(selectedExamen);
-      } catch (err) {
-        alert('❌ Erreur');
-      }
+    if (!window.confirm('Annuler cette inscription ?')) return;
+    try {
+      await api.delete(`/inscriptions-examens/${id}`);
+      alert('✅ Inscription annulée');
+      await loadInscriptions();
+      await updateElevesDisponibles();
+    } catch (err) {
+      alert('❌ Erreur');
     }
   };
 
+  // Formatage date
   const formatDate = (date: string) => date ? new Date(date).toLocaleDateString('fr-FR') : '-';
 
+  // Badge selon statut
   const getStatutBadge = (statut: string) => {
-    switch(statut) {
+    switch (statut) {
       case 'confirme': return { text: '✅ Confirmée', class: styles.badgeSuccess };
-      case 'reussi': return { text: '🎉 Réussi', class: styles.badgeSuccess };
-      case 'echoue': return { text: '❌ Échoué', class: styles.badgeDanger };
-      default: return { text: '⏳ En attente', class: styles.badgeWarning };
+      case 'reussi':   return { text: '🎉 Réussi', class: styles.badgeSuccess };
+      case 'echoue':   return { text: '❌ Échoué', class: styles.badgeDanger };
+      default:         return { text: '⏳ En attente', class: styles.badgeWarning };
     }
   };
 
+  // Chargement initial
   useEffect(() => {
-    const init = async () => {
-      await loadExamens();
-      await loadInscriptions();
-    };
-    init();
-  }, []);
+    loadInitialData();
+  }, [user]);
 
-  // Filtrer les inscriptions pour l'examen sélectionné
+  // Recharger les données si l'utilisateur change (rare)
+  useEffect(() => {
+    if (user?.id_ecole && examens.length > 0 && elevesDeLEcole.length > 0 && selectedExamen) {
+      updateElevesDisponibles();
+      loadInscriptions();
+    }
+  }, [user, examens, elevesDeLEcole, selectedExamen]);
+
+  // Filtrer les inscriptions pour l'examen courant
   const inscriptionsFiltrees = selectedExamen
     ? inscriptions.filter(i => i.id_examen === selectedExamen)
     : [];
+
+  if (loading && elevesDeLEcole.length === 0 && examens.length === 0) {
+    return <div style={{ textAlign: 'center', padding: 50 }}>Chargement des données...</div>;
+  }
 
   return (
     <div>
       <h1 className={styles.formTitle}>📋 Gestion des inscriptions aux examens</h1>
       <p className={styles.formSubtitle}>Inscrivez vos élèves aux examens nationaux</p>
 
-      {/* Sélecteur d'examen */}
+      {/* Sélection de l'examen */}
       <div className={styles.formCard} style={{ marginBottom: 24 }}>
         <div className={styles.formGroup}>
           <label className={styles.label}>Sélectionner un examen</label>
           <select
             className={styles.input}
-            onChange={(e) => chargerElevesPourExamen(Number(e.target.value))}
+            onChange={(e) => handleExamenChange(Number(e.target.value))}
             value={selectedExamen || ""}
           >
             <option value="">-- Choisir un examen --</option>
@@ -477,7 +504,7 @@ const SecretariatInscriptions: React.FC = () => {
       {selectedExamen && !showForm && (
         <div style={{ marginBottom: 24 }}>
           <button onClick={() => setShowForm(true)} className={styles.primaryButton}>
-            <Plus size={18} /> Nouvelle inscription pour {examenInfo?.nom}
+            <Plus size={18} /> Inscrire un élève à {examenInfo?.nom}
           </button>
         </div>
       )}
@@ -504,7 +531,7 @@ const SecretariatInscriptions: React.FC = () => {
               </select>
               {elevesDisponibles.length === 0 && (
                 <small style={{ color: '#ef233c', display: 'block', marginTop: 4 }}>
-                  Aucun élève disponible pour cet examen (tous sont déjà inscrits)
+                  Aucun élève disponible pour cet examen (tous sont déjà inscrits ou aucun élève dans l'école)
                 </small>
               )}
             </div>
